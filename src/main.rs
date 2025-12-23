@@ -14,7 +14,8 @@ fn main() {
     // We NEVER want to interrupt the call back, so we need a shared buffer with a mutex to allow
     // another thread to operate while the main one is busy with continuous audio input callback
 
-    let shared_buffer = Arc::new(Mutex::new(Vec::<f32>::new()));
+    //with capacity prevent reallocations 
+    let shared_buffer = Arc::new(Mutex::new(Vec::<f32>::with_capacity(4096)));
     let buffer_for_audio = Arc::clone(&shared_buffer);
     let device_name = device.name().unwrap_or_else(|_| "unknown device".to_string());
 
@@ -51,9 +52,16 @@ fn main() {
             continue;
         }
 
+        //Root Mean Square : signal strength
         let rms = (buffer.iter().map(|x| x * x).sum::<f32>() / buffer.len() as f32).sqrt();
 
-        let bars = (rms * 50.0) as usize;
+        // o2
+        // for &s in buffer.iter().step_by(20) {
+        //     let bar = (s.abs() * 100.0) as usize;
+        //     println!("{: <50}", "#".repeat(bar));
+        // }
+
+        let bars = (rms * 100.0) as usize;
         println!("{: <50}", "█".repeat(bars));
     }
 }
