@@ -9,6 +9,7 @@ fn main() {
     let device = host
         .default_input_device()
         .expect("no input device available");
+
     let config = device.default_input_config().expect("no default config");
 
     let sample_rate = config.sample_rate();
@@ -22,7 +23,6 @@ fn main() {
     let device_name = device.name().unwrap_or_else(|_| "unknown device".to_string());
 
     println!("Using device '{}' with config: {:?}", device_name, config);
-
     //The audio callback is a loop, it fills data variable with audio data from our input source continuously.
     //
     //data is a slice of f32 : each float is a sample, expressing an amplitude value at a specific
