@@ -45,14 +45,17 @@ pub async fn start_audio() -> Result<(), JsValue> {
     let ring = AudioRingBuffer::new(48_000 * 2); // ~2 secondes
     GLOBAL_RING.with(|g| *g.borrow_mut() = Some(ring));
 
-
     let closure = Closure::<dyn FnMut(MessageEvent)>::new(move |e: MessageEvent| {
         let array = js_sys::Float32Array::new(&e.data());
-        
+        web_sys::console::log_1(&format!("Received {} samples", array.length()).into());
+
         GLOBAL_RING.with(|g| {
             if let Some(ring) = g.borrow_mut().as_mut() {
                 let mut tmp = vec![0.0; array.length() as usize];
                 array.copy_to(&mut tmp);
+                web_sys::console::log_1(
+                    &format!("Received: {:?}", &tmp[..10]).into() // affiche les 10 premiers samples
+                );
                 ring.push_samples(&tmp);
             }
         });
@@ -63,10 +66,6 @@ pub async fn start_audio() -> Result<(), JsValue> {
 
     web_sys::console::log_1(&"🎤 Micro capturé (WASM)".into());
     Ok(())
-}
-
-pub fn take_ringbuffer() -> Option<AudioRingBuffer> {
-    GLOBAL_RING.with(|g| g.borrow_mut().take())
 }
 
 #[wasm_bindgen(start)]

@@ -1,9 +1,18 @@
 
 class MyProcessor extends AudioWorkletProcessor {
-  process(inputs) {
-    const input = inputs[0];
-    if (input && input[0]) {
-      this.port.postMessage(input[0]);
+  constructor() {
+    super();
+  }
+
+  process(inputs, outputs, parameters) {
+    const inputChannels = inputs[0];
+    if (inputChannels && inputChannels.length > 0) {
+      const channelData = inputChannels[0]; // Float32Array
+
+      const copy = new Float32Array(channelData.length);
+      copy.set(channelData);
+
+      this.port.postMessage(copy);
     }
     return true;
   }
