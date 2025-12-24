@@ -7,9 +7,10 @@ use std::cell::RefCell;
 use wasm_bindgen_futures::JsFuture;
 mod tuner_app;
 use tuner_app::{UiType, TunerApp};
+use std::rc::Rc;
 
 thread_local! {
-    static GLOBAL_RING: RefCell<Option<AudioRingBuffer>> = RefCell::new(None);
+    static GLOBAL_RING: RefCell<Option<Rc<RefCell<AudioRingBuffer>>>> = RefCell::new(None);
 }
 
 #[wasm_bindgen]
@@ -42,21 +43,18 @@ pub async fn start_audio() -> Result<(), JsValue> {
     let worklet = AudioWorkletNode::new(&audio_ctx, "my-processor")?;
     source.connect_with_audio_node(&worklet)?;
 
-    let ring = AudioRingBuffer::new(48_000 * 2); // ~2 secondes
-    GLOBAL_RING.with(|g| *g.borrow_mut() = Some(ring));
+    let ring = Rc::new(RefCell::new(AudioRingBuffer::new(48_000 * 2)));
+    GLOBAL_RING.with(|g| *g.borrow_mut() = Some(ring.clone()));
 
     let closure = Closure::<dyn FnMut(MessageEvent)>::new(move |e: MessageEvent| {
         let array = js_sys::Float32Array::new(&e.data());
-        web_sys::console::log_1(&format!("Received {} samples", array.length()).into());
-
         GLOBAL_RING.with(|g| {
-            if let Some(ring) = g.borrow_mut().as_mut() {
+            if let Some(ring_rc) = g.borrow().as_ref() {
+                let mut ring = ring_rc.borrow_mut(); // <-- emprunt mutable
                 let mut tmp = vec![0.0; array.length() as usize];
                 array.copy_to(&mut tmp);
-                web_sys::console::log_1(
-                    &format!("Received: {:?}", &tmp[..10]).into() // affiche les 10 premiers samples
-                );
                 ring.push_samples(&tmp);
+                web_sys::console::log_1(&format!("Pushed {} samples, buffer len={}", tmp.len(), ring.len()).into());
             }
         });
     });
