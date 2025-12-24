@@ -1,4 +1,6 @@
 use crate::AudioRingBuffer;
+use crate::Rc;
+use crate::RefCell;
 use crate::GLOBAL_RING;
 use crate::start_audio;
 use egui::{ Rect, Pos2, Color32, Vec2 };
@@ -17,11 +19,21 @@ enum Visualizer {
 pub struct TunerApp {
     ui_type : UiType, 
     visualizer: Visualizer,
-    ringbuff: Option<AudioRingBuffer>,
+    ringbuff: Option<Rc<RefCell<AudioRingBuffer>>>,
     audio_start: bool,
 }
 
 impl TunerApp {
+    pub fn init_ringbuffer(&mut self) {
+        if self.ringbuff.is_none() {
+            GLOBAL_RING.with(|g| {
+                if let Some(ring) = g.borrow().as_ref() {
+                    self.ringbuff = Some(ring.clone());
+                }
+            });
+        }
+    }
+
     pub fn new(ui_type: UiType) -> Self {
         Self {
             ui_type,
@@ -46,21 +58,17 @@ impl TunerApp {
 
 impl TunerApp {
     fn get_rms(&mut self) -> f32 {
-        if let Some(ringbuff) = &mut self.ringbuff {
-            web_sys::console::log_1(&format!("Buffer len: {}", ringbuff.len()).into());
-            let n = ringbuff.len();
-            if n == 0 {
-                return 0.0;
-            }
+        if let Some(ring_rc) = &self.ringbuff {
+            let mut ring = ring_rc.borrow_mut(); // emprunt mutable
+            let n = ring.len();
+            web_sys::console::log_1(&format!("Buffer len: {}", n).into());
+            if n == 0 { return 0.0; }
 
             let mut tmp = vec![0.0; n];
-            let read = ringbuff.peek_block(&mut tmp);
-            if read == 0 {
-                return 0.0;
-            }
+            let read = ring.peek_block(&mut tmp);
+            if read == 0 { return 0.0; }
 
-            // Diviser par le nombre d'échantillons lus, pas la capacité totale
-            (tmp[..read].iter().map(|x| x * x).sum::<f32>() / read as f32).sqrt()
+            (tmp[..read].iter().map(|x| x*x).sum::<f32>() / read as f32).sqrt()
         } else {
             0.0
         }
@@ -96,8 +104,8 @@ impl TunerApp {
 
 impl eframe::App for TunerApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        ctx.request_repaint();
         ctx.set_visuals(egui::Visuals::dark());
+        self.init_ringbuffer();
         egui::CentralPanel::default().show(ctx, |ui| {
 
             // ui.heading("🎵 Tuner WASM");
@@ -109,7 +117,7 @@ impl eframe::App for TunerApp {
                         if self.audio_start == false {
                             if ui.button("🎤 Activer le micro").clicked() {
                                 self.start_audio();
-                                self.ringbuff = GLOBAL_RING.with(|g| g.borrow_mut().take());
+                                // self.ringbuff = GLOBAL_RING.with(|g| g.borrow_mut().take());
                             }
                         }
 
@@ -140,11 +148,8 @@ impl eframe::App for TunerApp {
                 // },
             }
         });
+        ctx.request_repaint();
     }
-}
-
-pub fn take_ringbuffer() -> Option<AudioRingBuffer> {
-    GLOBAL_RING.with(|g| g.borrow_mut().take())
 }
 
 fn rms_to_db(rms: f32) -> f32 {
