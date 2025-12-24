@@ -4,7 +4,74 @@ use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
 use egui::ProgressBar;
 use egui::{ Rect, Pos2, Color32, Vec2 };
+use audio::ring::AudioRingBuffer;
+use std::cell::RefCell;
+use std::rc::Rc;
+use web_sys::{
+    AudioContext,
+    AudioWorkletNode,
+    MediaStream,
+    MediaStreamConstraints,
+    MessageEvent,
+};
+use wasm_bindgen_futures::JsFuture;
 
+thread_local! {
+    static GLOBAL_RING: RefCell<Option<AudioRingBuffer>> = RefCell::new(None);
+}
+
+#[wasm_bindgen]
+pub async fn start_audio() -> Result<(), JsValue> {
+    use web_sys::*;
+
+    let audio_ctx = AudioContext::new()?;
+
+    let stream = wasm_bindgen_futures::JsFuture::from(
+        window()
+            .unwrap()
+            .navigator()
+            .media_devices()?
+            .get_user_media_with_constraints(
+                MediaStreamConstraints::new().audio(&JsValue::TRUE),
+            )?,
+    )
+    .await?
+    .dyn_into::<MediaStream>()?;
+
+    let source = audio_ctx.create_media_stream_source(&stream)?;
+
+    let worklet = audio_ctx.audio_worklet()?;
+    JsFuture::from(worklet.add_module("my-processor.js")?).await?;
+
+    let worklet = AudioWorkletNode::new(&audio_ctx, "my-processor")?;
+    source.connect_with_audio_node(&worklet)?;
+
+    let ring = AudioRingBuffer::new(48_000 * 2); // ~2 secondes
+    GLOBAL_RING.with(|g| *g.borrow_mut() = Some(ring));
+
+
+    let closure = Closure::<dyn FnMut(MessageEvent)>::new(move |e: MessageEvent| {
+        let array = js_sys::Float32Array::new(&e.data());
+        
+        GLOBAL_RING.with(|g| {
+            if let Some(ring) = g.borrow_mut().as_mut() {
+                let mut tmp = vec![0.0; array.length() as usize];
+                array.copy_to(&mut tmp);
+                ring.push_samples(&tmp);
+            }
+        });
+    });
+
+    worklet.port().unwrap().set_onmessage(Some(closure.as_ref().unchecked_ref()));
+    closure.forget();
+
+    web_sys::console::log_1(&"🎤 Micro capturé (WASM)".into());
+    Ok(())
+}
+
+pub fn take_ringbuffer() -> Option<AudioRingBuffer> {
+    GLOBAL_RING.with(|g| g.borrow_mut().take())
+}
 
 
 #[wasm_bindgen(start)]
@@ -42,22 +109,50 @@ enum Visualizer {
 struct TunerApp {
     ui_type : UiType, 
     visualizer: Visualizer,
-    buffer: Arc<Mutex<Vec<f32>>>,
+    ringbuff: Option<AudioRingBuffer>,
+    audio_start: bool,
 }
 
 impl TunerApp {
-    pub fn new(ui_type: UiType, buffer: Arc<Mutex<Vec<f32>>>) -> Self {
+    pub fn new(ui_type: UiType) -> Self {
         Self {
             ui_type,
-            buffer,
-            visualizer: Visualizer::Freq
+            ringbuff: None,
+            visualizer: Visualizer::RMS,
+            audio_start: false,
         }
+    }
+
+    pub fn start_audio(&mut self) {
+        if self.audio_start {
+            return;
+        }
+
+        self.audio_start = true;
+
+        wasm_bindgen_futures::spawn_local(async {
+            start_audio().await.unwrap();
+        });
     }
 }
 
 impl TunerApp {
-    fn get_rms() -> f32 {
-        (self.buffer.iter().map(|x| x * x).sum::<f32>() / buffer.len() as f32).sqrt()
+    fn get_rms(&mut self) -> f32 {
+        if let Some(ringbuff) = &mut self.ringbuff {
+            let n = ringbuff.len();
+            if n == 0 {
+                return 0.0;
+            }
+
+            let mut tmp = vec![0.0; n];
+            let read = ringbuff.pop_block(&mut tmp);
+            if read == 0 {
+                return 0.0;
+            }
+            (tmp[..read].iter().map(|x| x * x).sum::<f32>() / ringbuff.len() as f32).sqrt()
+        } else {
+            0.0
+        }
     }
 
     fn render_rms(&mut self, ui: &mut egui::Ui) {
@@ -66,9 +161,7 @@ impl TunerApp {
         let painter = ui.painter();
         painter.rect_filled(rect, 4.0, Color32::from_gray(30));
 
-        //let rms = self.get_rms();
-        let rms = 0.0;
-        //Ici on exploite le buffer partage
+        let rms = self.get_rms();
         let db = rms_to_db(rms);
         let min_db = -60.0;
         let max_db = 0.0;
@@ -86,12 +179,22 @@ impl TunerApp {
 impl eframe::App for TunerApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         ctx.set_visuals(egui::Visuals::dark());
+        if self.ringbuff.is_none() {
+            self.ringbuff = take_ringbuffer();
+        }
         egui::CentralPanel::default().show(ctx, |ui| {
 
             // ui.heading("🎵 Tuner WASM");
             match &self.ui_type {
                 _ => {
                     egui::SidePanel::right("mode").show(ctx, |ui| {
+
+
+                        if ui.button("🎤 Activer le micro").clicked() {
+                            self.start_audio();
+                        }
+
+
                         if ui.button("RMS").clicked() {
                             self.visualizer = Visualizer::RMS;
                         }    
@@ -123,6 +226,13 @@ impl eframe::App for TunerApp {
 
 fn rms_to_db(rms: f32) -> f32 {
     20.0 * (rms.max(1e-9)).log10()
+}
+
+fn start_audio_async() {
+    wasm_bindgen_futures::spawn_local(async {
+        start_audio().await;
+        web_sys::console::log_1(&"Microphone ready".into());
+    });
 }
 
 pub fn get_ui_type(window: web_sys::Window) -> UiType {
