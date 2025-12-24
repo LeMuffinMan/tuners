@@ -10,7 +10,7 @@ pub async fn start() -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
     let canvas = document
-        .get_element_by_id("the_canvas")
+        .get_element_by_id("tunersappid")
         .unwrap()
         .dyn_into::<web_sys::HtmlCanvasElement>()?;
 
