@@ -10,6 +10,15 @@ pub struct AudioRingBuffer {
 }
 
 impl AudioRingBuffer {
+    pub fn peek_block(&self, out: &mut [f32]) -> usize {
+        let n = out.len().min(self.len);
+        let mut pos = self.read_pos;
+        for i in 0..n {
+            out[i] = self.buffer[pos];
+            pos = (pos + 1) % self.capacity;
+        }
+        n
+    }
     pub fn new(capacity: usize) -> Self {
         Self {
             buffer: vec![0.0; capacity],

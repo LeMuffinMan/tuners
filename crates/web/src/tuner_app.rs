@@ -1,6 +1,6 @@
 use crate::AudioRingBuffer;
+use crate::GLOBAL_RING;
 use crate::start_audio;
-use crate::take_ringbuffer;
 use egui::{ Rect, Pos2, Color32, Vec2 };
 
 pub enum UiType {
@@ -37,7 +37,7 @@ impl TunerApp {
         }
 
         self.audio_start = true;
-
+        
         wasm_bindgen_futures::spawn_local(async {
             start_audio().await.unwrap();
         });
@@ -47,17 +47,20 @@ impl TunerApp {
 impl TunerApp {
     fn get_rms(&mut self) -> f32 {
         if let Some(ringbuff) = &mut self.ringbuff {
+            web_sys::console::log_1(&format!("Buffer len: {}", ringbuff.len()).into());
             let n = ringbuff.len();
             if n == 0 {
                 return 0.0;
             }
 
             let mut tmp = vec![0.0; n];
-            let read = ringbuff.pop_block(&mut tmp);
+            let read = ringbuff.peek_block(&mut tmp);
             if read == 0 {
                 return 0.0;
             }
-            (tmp[..read].iter().map(|x| x * x).sum::<f32>() / ringbuff.len() as f32).sqrt()
+
+            // Diviser par le nombre d'échantillons lus, pas la capacité totale
+            (tmp[..read].iter().map(|x| x * x).sum::<f32>() / read as f32).sqrt()
         } else {
             0.0
         }
@@ -72,7 +75,9 @@ impl TunerApp {
         painter.rect_filled(rect, 4.0, Color32::from_gray(30));
 
         let rms = self.get_rms();
+        web_sys::console::log_1(&format!("RMS: {:.3}", rms).into());
         let db = rms_to_db(rms);
+        // web_sys::console::log_1(&format!("RMS: {:.5}, dB: {:.2}", rms, db).into());
         let min_db = -60.0;
         let max_db = 0.0;
 
@@ -91,10 +96,8 @@ impl TunerApp {
 
 impl eframe::App for TunerApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        ctx.request_repaint();
         ctx.set_visuals(egui::Visuals::dark());
-        if self.ringbuff.is_none() {
-            self.ringbuff = take_ringbuffer();
-        }
         egui::CentralPanel::default().show(ctx, |ui| {
 
             // ui.heading("🎵 Tuner WASM");
@@ -106,6 +109,7 @@ impl eframe::App for TunerApp {
                         if self.audio_start == false {
                             if ui.button("🎤 Activer le micro").clicked() {
                                 self.start_audio();
+                                self.ringbuff = GLOBAL_RING.with(|g| g.borrow_mut().take());
                             }
                         }
 
@@ -137,6 +141,10 @@ impl eframe::App for TunerApp {
             }
         });
     }
+}
+
+pub fn take_ringbuffer() -> Option<AudioRingBuffer> {
+    GLOBAL_RING.with(|g| g.borrow_mut().take())
 }
 
 fn rms_to_db(rms: f32) -> f32 {
