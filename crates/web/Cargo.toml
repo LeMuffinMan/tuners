@@ -1,0 +1,17 @@
+[package]
+name = "tuners_wasm"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tuner_dsp = { path = "../dsp" }
+console_error_panic_hook = "0.1.7"
+eframe = { version = "0.33.3", default-features = false, features = ["glow"] } # wgpu as alternative ?
+web-sys = { version = "0.3", features = ["Window", "Document", "HtmlCanvasElement"] }
+egui = "0.33.3"
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4.56"
+
+[lib]
+name = "tuners_wasm"
+crate-type = ["cdylib"]
