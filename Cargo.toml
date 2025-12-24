@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/audio",
     "crates/dsp",
     "crates/native",
     "crates/web"
