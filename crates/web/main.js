@@ -1,8 +1,7 @@
 
-import init from "../pkg/tuners.js";
+import init from "./rust_tuner.js";
 
-async function main() {
-  await init();
+export async function main() {
+    await init();
 }
 
-main();
