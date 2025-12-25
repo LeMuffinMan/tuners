@@ -3,7 +3,7 @@ use crate::Rc;
 use crate::RefCell;
 use crate::GLOBAL_RING;
 use crate::start_audio;
-use egui::{ Rect, Pos2, Color32, Vec2 };
+use egui::{ Rect, Pos2, Color32 };
 
 pub enum UiType {
     Mobile,
@@ -21,8 +21,7 @@ pub struct TunerApp {
     visualizer: Visualizer,
     ringbuff: Option<Rc<RefCell<AudioRingBuffer>>>,
     audio_start: bool,
-    rms_history: Vec<f32>, // <- nouvel ajout
-    max_history: usize, 
+    rms_history: Vec<f32>,
 }
 
 impl TunerApp {
@@ -43,7 +42,6 @@ impl TunerApp {
             visualizer: Visualizer::RMS,
             audio_start: false,
             rms_history: Vec::new(),
-            max_history: 500,
         }
     }
 
@@ -63,7 +61,7 @@ impl TunerApp {
 impl TunerApp {
     fn get_rms(&mut self) -> f32 {
         if let Some(ring_rc) = &self.ringbuff {
-            let mut ring = ring_rc.borrow_mut(); // emprunt mutable
+            let ring = ring_rc.borrow_mut();
             let n = ring.len();
             if n == 0 { return 0.0; }
 
@@ -86,22 +84,19 @@ impl TunerApp {
         let (rect, _) = ui.allocate_exact_size(size, egui::Sense::hover());
         let painter = ui.painter();
 
-        // fond gris
         painter.rect_filled(rect, 0.0, Color32::from_gray(30));
 
-        // calcul RMS et normalisation
         let rms = self.get_rms();
 
-        // ajouter à l'historique
         self.rms_history.push(rms * height / 200.0);
         if self.rms_history.len() > width as usize {
-            self.rms_history.remove(0); // supprime la valeur la plus ancienne à gauche
+            self.rms_history.remove(0); 
         }
 
         let n = self.rms_history.len();
         for (i, &v) in self.rms_history.iter().enumerate() {
             let bar_height = v * height;
-            let x = rect.right() - n as f32 + i as f32; // nouvelle valeur à droite
+            let x = rect.right() - n as f32 + i as f32; 
             painter.rect_filled(
                 Rect::from_min_max(
                     Pos2::new(x, rect.bottom() - bar_height),
@@ -120,7 +115,7 @@ impl eframe::App for TunerApp {
         self.init_ringbuffer();
         egui::CentralPanel::default().show(ctx, |ui| {
 
-            // ui.heading("🎵 Tuner WASM");
+            // ui.heading("Tuner WASM");
             match &self.ui_type {
                 _ => {
                     if self.audio_start {
@@ -165,9 +160,5 @@ impl eframe::App for TunerApp {
         });
         ctx.request_repaint();
     }
-}
-
-fn rms_to_db(rms: f32) -> f32 {
-    20.0 * (rms.max(1e-9)).log10()
 }
 

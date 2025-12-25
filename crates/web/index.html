@@ -1,9 +1,12 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <title>Tuner</title>
+
   <link data-trunk rel="copy-file" href="my-processor.js">
+
   <style>
     html, body {
       margin: 0;
@@ -24,6 +27,12 @@
 
 <body>
   <canvas id="tunersappid"></canvas>
-  <script type="module" src="main.js"></script>
+
+  <script type="module">
+    import init from "./rust_tuner.js";
+
+    await init();
+  </script>
 </body>
 </html>
+
