@@ -1,4 +1,15 @@
 
+use std::cell::RefCell;
+use std::rc::Rc;
+
+thread_local! {
+///This gives us a mutable global. This buffer is filled by audio side, and read by ui
+///Rc and RefCell let us use the buffer as writer and reader in the same WASM thread, 
+///checking at runtime to borrow it as mutable. 
+///Panic in case of error
+    pub static GLOBAL_RING: RefCell<Option<Rc<RefCell<AudioRingBuffer>>>> = RefCell::new(None);
+}
+
 #[derive(Debug)]
 pub struct AudioRingBuffer {
     buffer: Vec<f32>,
@@ -6,6 +17,21 @@ pub struct AudioRingBuffer {
     write_pos: usize,
     read_pos: usize,
     len: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct DSPRingBuffer {
+    pub buffer: Vec<DSPResult>,
+    pub capacity: usize,
+    pub write_pos: usize,
+    pub len: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct DSPResult {
+    pub rms: f32,
+    // pub pitch: f32,
+    // pub spectrum: Vec<f32>,
 }
 
 impl AudioRingBuffer {

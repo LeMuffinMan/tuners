@@ -116,6 +116,9 @@ name = "audio"
 version = "0.1.0"
 dependencies = [
  "rtrb",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]
@@ -2099,9 +2102,23 @@ dependencies = [
  "eframe",
  "egui",
  "tuner_dsp",
+ "ui",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+]
+
+[[package]]
+name = "ui"
+version = "0.1.0"
+dependencies = [
+ "audio",
+ "console_error_panic_hook",
+ "eframe",
+ "egui",
+ "tuner_dsp",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
 ]
 
 [[package]]
