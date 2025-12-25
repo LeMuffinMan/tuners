@@ -3,6 +3,7 @@ use std::cell::RefCell;
 use audio::RingReader;
 // use audio::backend::start_audio;
 use audio::backend::wasm::start_audio_wasm;
+use audio::backend::wasm::read_global_rms;
 use web_sys;
 
 pub enum UiType {
@@ -43,10 +44,19 @@ impl TunerApp {
 impl TunerApp {
     //devrait aller dans DSP
     pub fn get_rms(&mut self) -> f32 {
-        if let Some(reader_rc) = &self.ring_reader {
-            reader_rc.borrow_mut().get_rms()
-        } else {
-            0.0
+        #[cfg(target_arch = "wasm32")]
+        {
+            read_global_rms()
+        }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            // Pour le build natif, tu peux continuer à utiliser AudioRingBuffer si tu en as un
+            if let Some(reader_rc) = &self.ring_reader {
+                reader_rc.borrow_mut().get_rms()
+            } else {
+                0.0
+            }
         }
     }
 
