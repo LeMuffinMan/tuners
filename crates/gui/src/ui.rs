@@ -1,9 +1,11 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use audio::RingReader;
-// use audio::backend::start_audio;
+#[cfg(target_arch = "wasm32")]
 use audio::backend::wasm::start_audio_wasm;
+#[cfg(target_arch = "wasm32")]
 use audio::backend::wasm::read_global_rms;
+#[cfg(target_arch = "wasm32")]
 use web_sys;
 
 pub enum UiType {
@@ -113,6 +115,7 @@ impl eframe::App for TunerApp {
 
                         if self.audio_start == false {
                             if ui.button("🎤 Activer le micro").clicked() {
+                                #[cfg(target_arch = "wasm32")]
                                 self.start_audio();
                                 // self.ringbuff = GLOBAL_RING.with(|g| g.borrow_mut().take());
                             }

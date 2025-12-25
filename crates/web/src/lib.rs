@@ -3,7 +3,7 @@ use wasm_bindgen::prelude::*;
 use eframe::App;
 
 // use tuner_dsp::{autocorrelation, freq_to_tune};
-use ui::{UiType, TunerApp};
+use gui::{UiType, TunerApp};
 
 ///This is our end point, we init the canvas and the runner to run our UI
 #[wasm_bindgen(start)]
