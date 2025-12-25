@@ -1,5 +1,4 @@
 
-/// Ring buffer pour stocker des samples audio
 #[derive(Debug)]
 pub struct AudioRingBuffer {
     buffer: Vec<f32>,

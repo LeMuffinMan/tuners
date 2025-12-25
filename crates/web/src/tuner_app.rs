@@ -21,6 +21,8 @@ pub struct TunerApp {
     visualizer: Visualizer,
     ringbuff: Option<Rc<RefCell<AudioRingBuffer>>>,
     audio_start: bool,
+    rms_history: Vec<f32>, // <- nouvel ajout
+    max_history: usize, 
 }
 
 impl TunerApp {
@@ -40,6 +42,8 @@ impl TunerApp {
             ringbuff: None,
             visualizer: Visualizer::RMS,
             audio_start: false,
+            rms_history: Vec::new(),
+            max_history: 500,
         }
     }
 
@@ -61,7 +65,6 @@ impl TunerApp {
         if let Some(ring_rc) = &self.ringbuff {
             let mut ring = ring_rc.borrow_mut(); // emprunt mutable
             let n = ring.len();
-            web_sys::console::log_1(&format!("Buffer len: {}", n).into());
             if n == 0 { return 0.0; }
 
             let mut tmp = vec![0.0; n];
@@ -75,31 +78,40 @@ impl TunerApp {
     }
 
     fn render_rms(&mut self, ui: &mut egui::Ui) {
-        let size = Vec2::new(24.0, 140.0);
+        // Taille du panel (barre latérale)
+        let size = ui.available_size();
+        let width = size.x;
+        let height = size.y;
+
         let (rect, _) = ui.allocate_exact_size(size, egui::Sense::hover());
         let painter = ui.painter();
-        
+
         // fond gris
-        painter.rect_filled(rect, 4.0, Color32::from_gray(30));
+        painter.rect_filled(rect, 0.0, Color32::from_gray(30));
 
+        // calcul RMS et normalisation
         let rms = self.get_rms();
-        web_sys::console::log_1(&format!("RMS: {:.3}", rms).into());
-        let db = rms_to_db(rms);
-        // web_sys::console::log_1(&format!("RMS: {:.5}, dB: {:.2}", rms, db).into());
-        let min_db = -60.0;
-        let max_db = 0.0;
 
-        let norm = ((db - min_db) / (max_db - min_db)).clamp(0.0, 1.0);
-        let fill_height = rect.height() * norm;
+        // ajouter à l'historique
+        self.rms_history.push(rms * height / 200.0);
+        if self.rms_history.len() > width as usize {
+            self.rms_history.remove(0); // supprime la valeur la plus ancienne à gauche
+        }
 
-        // barre remplie
-        let filled_rect = Rect::from_min_max(
-            Pos2::new(rect.left(), rect.bottom() - fill_height),
-            Pos2::new(rect.right(), rect.bottom()),
-        );
-        painter.rect_filled(filled_rect, 4.0, Color32::from_rgb(0, 200, 0));
+        let n = self.rms_history.len();
+        for (i, &v) in self.rms_history.iter().enumerate() {
+            let bar_height = v * height;
+            let x = rect.right() - n as f32 + i as f32; // nouvelle valeur à droite
+            painter.rect_filled(
+                Rect::from_min_max(
+                    Pos2::new(x, rect.bottom() - bar_height),
+                    Pos2::new(x + 1.0, rect.bottom()),
+                ),
+                0.0,
+                Color32::from_rgb(0, 200, 0),
+            );
+        }
     }
-
 }
 
 impl eframe::App for TunerApp {
@@ -111,7 +123,22 @@ impl eframe::App for TunerApp {
             // ui.heading("🎵 Tuner WASM");
             match &self.ui_type {
                 _ => {
-                    egui::SidePanel::right("mode").show(ctx, |ui| {
+                    if self.audio_start {
+                        match self.visualizer {
+                            _ => {
+                                self.render_rms(ui);
+                            }
+                            // RMS => {
+                            // },
+                            // Freq => {
+                            //
+                            // },
+                            // WaveShape => {
+                            //
+                            // },
+                        }
+                    }
+                    egui::SidePanel::left("mode").show(ctx, |ui| {
 
 
                         if self.audio_start == false {
@@ -134,19 +161,7 @@ impl eframe::App for TunerApp {
                     });
                 }
             }
-            match self.visualizer {
-                _ => {
-                    self.render_rms(ui);
-                }
-                // RMS => {
-                // },
-                // Freq => {
-                //
-                // },
-                // WaveShape => {
-                //
-                // },
-            }
+
         });
         ctx.request_repaint();
     }
