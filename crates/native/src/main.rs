@@ -68,25 +68,25 @@ fn main() {
         //Root Mean Square : signal strength
         let rms = (buffer.iter().map(|x| x * x).sum::<f32>() / buffer.len() as f32).sqrt();
 
-        // let bars = (rms * 100.0) as usize;
-        // println!("{: <50}", "█".repeat(bars));
+        let bars = (rms * 100.0) as usize;
+        println!("{: <50}", "█".repeat(bars));
 
-        //Wave shape
+        // Wave shape
         // for &s in buffer.iter().step_by(20) {
         //     let bar = (s.abs() * 100.0) as usize;
         //     println!("{: <50}", "#".repeat(bar));
         // }
 
-        if buffer.len() < 2048 {
-            continue;
-        }
+        // if buffer.len() < 2048 {
+        //     continue;
+        // }
 
-        if rms > 0.1 {
-            if let Some(freq) = autocorrelation(&buffer, sample_rate as f32) {
-                let tune = freq_to_tune(freq); 
-                println!("Freq: {:.2}Hz | {} | rms = {}", freq, tune, rms);
-            }
-        }
+        // if rms > 0.1 {
+        //     if let Some(freq) = autocorrelation(&buffer, sample_rate as f32) {
+        //         let tune = freq_to_tune(freq); 
+        //         println!("Freq: {:.2}Hz | {} | rms = {}", freq, tune, rms);
+        //     }
+        // }
     }
     //
     //
