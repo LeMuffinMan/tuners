@@ -3,6 +3,6 @@ resolver = "2"
 members = [
     "crates/audio",
     "crates/dsp",
-    "crates/native",
+    "crates/native_gui",
     "crates/web"
 ]

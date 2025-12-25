@@ -1,5 +1,5 @@
 [package]
-name = "tuners_native"
+name = "tuners_native_gui"
 version = "0.1.0"
 edition = "2024"
 
@@ -8,5 +8,5 @@ tuner_dsp = { path = "../dsp" }
 cpal = "0.17.0"
 
 [[bin]]
-name = "tuners_native"
+name = "tuners_native_gui"
 path = "src/main.rs"  

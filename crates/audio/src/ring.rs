@@ -66,6 +66,32 @@ impl DSPRingBuffer {
 }
 
 impl AudioRingBuffer {
+    pub fn push_slice(&mut self, samples: &[f32]) {
+        let mut remaining = samples;
+        while !remaining.is_empty() {
+            // Espace restant jusqu'à la fin du buffer
+            let end_space = self.capacity - self.write_pos;
+            // Combien d'éléments on peut écrire dans ce segment
+            let n = remaining.len().min(end_space);
+
+            // Copier dans le buffer
+            self.buffer[self.write_pos..self.write_pos + n].copy_from_slice(&remaining[..n]);
+
+            // Mettre à jour write_pos
+            self.write_pos = (self.write_pos + n) % self.capacity;
+
+            // Mettre à jour read_pos si on dépasse la capacité
+            if self.len + n > self.capacity {
+                self.read_pos = (self.read_pos + (self.len + n - self.capacity)) % self.capacity;
+            }
+
+            // Mettre à jour la longueur
+            self.len = (self.len + n).min(self.capacity);
+
+            // Avancer dans le slice
+            remaining = &remaining[n..];
+        }
+    }
     pub fn peek_block(&self, out: &mut [f32]) -> usize {
         let n = out.len().min(self.len);
         let mut pos = self.read_pos;

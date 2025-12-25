@@ -5,6 +5,7 @@ pub trait RingReader {
 }
 
 //Native 
+#[cfg(not(target_arch = "wasm32"))]
 impl RingReader for AudioRingBuffer {
     fn get_rms(&mut self) -> f32 {
         0.0
@@ -12,6 +13,7 @@ impl RingReader for AudioRingBuffer {
 }
 
 //Wasm
+#[cfg(target_arch = "wasm32")]
 impl RingReader for DSPRingBuffer {
     fn get_rms(&mut self) -> f32 {
         if self.len == 0 { return 0.0; }
