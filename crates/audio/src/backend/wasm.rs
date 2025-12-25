@@ -4,9 +4,32 @@ use wasm_bindgen_futures::JsFuture;
 use std::rc::Rc;
 use std::cell::RefCell;
 use crate::ring::DSPRingBuffer;
+use crate::RingReader;
 
 thread_local! {
     pub static GLOBAL_RING: RefCell<Option<Rc<RefCell<DSPRingBuffer>>>> = RefCell::new(None);
+}
+
+
+/// Renvoie le dernier RMS du buffer global (si disponible)
+pub fn read_global_rms() -> f32 {
+    GLOBAL_RING.with(|g| {
+        if let Some(ring_rc) = &*g.borrow() {
+            ring_rc.borrow_mut().get_rms()
+        } else {
+            0.0
+        }
+    })
+}
+
+/// Renvoie un clone du buffer complet, utile si tu veux traiter l'historique
+pub fn clone_global_buffer() -> Option<Vec<f32>> {
+    GLOBAL_RING.with(|g| {
+        g.borrow().as_ref().map(|ring_rc| {
+            let ring = ring_rc.borrow();
+            ring.buffer.iter().map(|r| r.rms).collect()
+        })
+    })
 }
 
 // Fonction publique unifiée
