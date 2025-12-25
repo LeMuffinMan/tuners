@@ -4,7 +4,6 @@ use egui::{ Rect, Pos2, Color32 };
 
 impl TunerApp {
     pub fn render_rms(&mut self, ui: &mut egui::Ui) {
-        // Taille du panel (barre latérale)
         let size = ui.available_size();
         let width = size.x;
         let height = size.y;
@@ -16,7 +15,7 @@ impl TunerApp {
 
         let rms = self.get_rms();
 
-        self.rms_history.push(rms * height / 200.0);
+        self.rms_history.push(rms);
         if self.rms_history.len() > width as usize {
             self.rms_history.remove(0); 
         }

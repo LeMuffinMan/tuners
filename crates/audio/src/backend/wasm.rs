@@ -11,7 +11,6 @@ thread_local! {
 }
 
 
-/// Renvoie le dernier RMS du buffer global (si disponible)
 pub fn read_global_rms() -> f32 {
     GLOBAL_RING.with(|g| {
         if let Some(ring_rc) = &*g.borrow() {
@@ -22,7 +21,6 @@ pub fn read_global_rms() -> f32 {
     })
 }
 
-/// Renvoie un clone du buffer complet, utile si tu veux traiter l'historique
 pub fn clone_global_buffer() -> Option<Vec<f32>> {
     GLOBAL_RING.with(|g| {
         g.borrow().as_ref().map(|ring_rc| {
@@ -32,14 +30,12 @@ pub fn clone_global_buffer() -> Option<Vec<f32>> {
     })
 }
 
-// Fonction publique unifiée
 pub fn start_audio() {
     spawn_local(async {
         start_audio_wasm().await.unwrap();
     });
 }
 
-///We expose this function to JS to init audio input
 #[wasm_bindgen]
 pub async fn start_audio_wasm() -> Result<(), JsValue> {
     use web_sys::*;
