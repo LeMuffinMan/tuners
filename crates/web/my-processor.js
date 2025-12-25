@@ -1,20 +1,30 @@
 
+
+///my-processor.js define an AudioWorkletProcessor
+///
+///we define a custom AudioWorkletProcessor 
+///Using it with the Web Audio API allows us to work on real time audio
+///with a separate thread. Thus we can use the main thread for the DPS and the UI
 class MyProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
   }
 
+  //audio engine will keep calling process while it returns true
   process(inputs, outputs, parameters) {
     const inputChannels = inputs[0];
     if (inputChannels && inputChannels.length > 0) {
-      const channelData = inputChannels[0]; // Float32Array
+      //we want to read the first cannal data
+      const channelData = inputChannels[0];
 
       const copy = new Float32Array(channelData.length);
       copy.set(channelData);
 
+      //we don't want to send to main thread the channelData, since audio engine work with it
+      //sending a copy prevent the main thread, our dsp and ui, to interfere with the audio engine 
       this.port.postMessage(copy);
     }
-    return true;
+    return true; //this triggers again process
   }
 }
 

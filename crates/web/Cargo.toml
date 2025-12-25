@@ -7,7 +7,7 @@ edition = "2024"
 tuner_dsp = { path = "../dsp" }
 audio = { path = "../audio" }
 console_error_panic_hook = "0.1.7"
-eframe = { version = "0.33.3", default-features = false, features = ["glow"] } # wgpu as alternative ?
+eframe = { version = "0.33.3", default-features = false, features = ["glow"] } # wgpu as alternative 
 web-sys = { version = "0.3", features = [
   "Window",
   "MediaDevices",
