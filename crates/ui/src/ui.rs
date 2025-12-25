@@ -1,7 +1,9 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use audio::RingReader;
-use audio::ring::GLOBAL_RING;
+// use audio::backend::start_audio;
+use audio::backend::wasm::start_audio_wasm;
+use web_sys;
 
 pub enum UiType {
     Mobile,
@@ -23,16 +25,8 @@ pub struct TunerApp {
 }
 
 impl TunerApp {
-    //devrait aller dans audio ?
-    pub fn init_ring_reader(&mut self) {
-        if self.ring_reader.is_none() {
-            GLOBAL_RING.with(|g| {
-                if let Some(ring) = g.borrow().as_ref() {
-                    // Ici on clone le Rc et le cast en dyn RingReader
-                    self.ring_reader = Some(ring.clone() as Rc<RefCell<dyn RingReader>>);
-                }
-            });
-        }
+    pub fn set_ring_reader(&mut self, ring: Rc<RefCell<dyn RingReader>>) {
+        self.ring_reader = Some(ring);
     }
 
     pub fn new(ui_type: UiType) -> Self {
@@ -62,7 +56,21 @@ impl TunerApp {
         }
 
         self.audio_start = true;
-        //ici on appelle le trait qui va chercher soit dans backend/wasm backend/native 
+        #[cfg(target_arch = "wasm32")]
+        {
+            wasm_bindgen_futures::spawn_local(async {
+                match start_audio_wasm().await {
+                    Ok(_) => web_sys::console::log_1(&"Micro captured".into()),
+                    Err(e) => web_sys::console::error_1(&e),
+                }
+            });
+        }
+
+        // Pour le build natif, tu pourrais appeler start_audio_native() ou autre
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            // crate::audio::start_audio_native();
+        }
     }
 
 }
@@ -70,7 +78,6 @@ impl TunerApp {
 impl eframe::App for TunerApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         ctx.set_visuals(egui::Visuals::dark());
-        self.init_ring_reader();
         egui::CentralPanel::default().show(ctx, |ui| {
 
             // ui.heading("Tuner WASM");

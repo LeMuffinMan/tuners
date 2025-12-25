@@ -2119,6 +2119,7 @@ dependencies = [
  "tuner_dsp",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]
