@@ -1,5 +1,13 @@
 
 
+function computeRMS(buffer) {
+    let sum = 0;
+    for (let i = 0; i < buffer.length; i++) {
+        sum += buffer[i] * buffer[i];
+    }
+    return Math.sqrt(sum / buffer.length);
+}
+
 ///my-processor.js define an AudioWorkletProcessor
 ///
 ///we define a custom AudioWorkletProcessor 
@@ -16,13 +24,11 @@ class MyProcessor extends AudioWorkletProcessor {
     if (inputChannels && inputChannels.length > 0) {
       //we want to read the first cannal data
       const channelData = inputChannels[0];
-
-      const copy = new Float32Array(channelData.length);
-      copy.set(channelData);
+      const rms = computeRMS(channelData);
 
       //we don't want to send to main thread the channelData, since audio engine work with it
       //sending a copy prevent the main thread, our dsp and ui, to interfere with the audio engine 
-      this.port.postMessage(copy);
+      this.port.postMessage(rms);
     }
     return true; //this triggers again process
   }
