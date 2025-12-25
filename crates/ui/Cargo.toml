@@ -8,17 +8,17 @@ tuner_dsp = { path = "../dsp" }
 audio = { path = "../audio" }
 console_error_panic_hook = "0.1.7"
 eframe = { version = "0.33.3", default-features = false, features = ["glow"] } # wgpu as alternative 
-# web-sys = { version = "0.3", features = [
-#   "Window",
-#   "MediaDevices",
-#   "MediaStream",
-#   "MediaStreamConstraints",
-#   "AudioContext",
-#   "AudioNode",
-#   "AudioWorklet",
-#   "AudioWorkletNode",
-#   "MediaStreamAudioSourceNode",
-# ] }
+web-sys = { version = "0.3", features = [
+  "Window",
+  "MediaDevices",
+  "MediaStream",
+  "MediaStreamConstraints",
+  "AudioContext",
+  "AudioNode",
+  "AudioWorklet",
+  "AudioWorkletNode",
+  "MediaStreamAudioSourceNode",
+] }
 egui = "0.33.3"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4.56"

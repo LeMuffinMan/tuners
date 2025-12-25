@@ -3,8 +3,11 @@ use wasm_bindgen_futures::spawn_local;
 use wasm_bindgen_futures::JsFuture;
 use std::rc::Rc;
 use std::cell::RefCell;
-use crate::ring::AudioRingBuffer;
-use crate::ring::GLOBAL_RING;
+use crate::ring::DSPRingBuffer;
+
+thread_local! {
+    pub static GLOBAL_RING: RefCell<Option<Rc<RefCell<DSPRingBuffer>>>> = RefCell::new(None);
+}
 
 // Fonction publique unifiée
 pub fn start_audio() {
@@ -50,31 +53,34 @@ pub async fn start_audio_wasm() -> Result<(), JsValue> {
     source.connect_with_audio_node(&worklet)?;
 
     //We now initialise the ring buffer : 2 seconds, 48 kHz 
-    let ring = Rc::new(RefCell::new(AudioRingBuffer::new(48_000 * 2)));
+    let ring = Rc::new(RefCell::new(DSPRingBuffer::new(48_000 * 2)));
     GLOBAL_RING.with(|g| *g.borrow_mut() = Some(ring.clone()));
 
     //We define a closure, that we will call for each message from our audioworklet 
     let closure = Closure::<dyn FnMut(MessageEvent)>::new(move |e: MessageEvent| {
-        let array = js_sys::Float32Array::new(&e.data());
-        //array is the received data from js, we open a closure to write in the ring buffer.
-        //This function being async, we can safely read in this ring buffer by opening another
-        //closure and borrowing it 
+        // Récupération du RMS depuis l'objet JS { rms: ... }
+        let rms = js_sys::Reflect::get(&e.data(), &JsValue::from_str("rms"))
+            .unwrap()
+            .as_f64()
+            .unwrap() as f32;
+
+        // Log dans la console
+        web_sys::console::log_1(&format!("RMS: {}", rms).into());
+
+        // Stockage dans le ring buffer
         GLOBAL_RING.with(|g| {
             if let Some(ring_rc) = g.borrow().as_ref() {
-                let mut ring = ring_rc.borrow_mut(); // <-- emprunt mutable
-                let mut tmp = vec![0.0; array.length() as usize];
-                array.copy_to(&mut tmp);
-                ring.push_samples(&tmp);
-                // web_sys::console::log_1(&format!("Pushed {} samples, buffer len={}", tmp.len(), ring.len()).into());
+                let mut ring = ring_rc.borrow_mut();
+                ring.push_rms(rms);
             }
         });
     });
 
-    //when we receive a message from the worklet, we execute our closure and the message 
+    // Associer le closure à l'AudioWorkletNode
     worklet.port().unwrap().set_onmessage(Some(closure.as_ref().unchecked_ref()));
-    //we want to prevent Rust to destroy the closure, or js will crash
-    closure.forget();
 
+    // Éviter que Rust drop le closure
+    closure.forget();
     web_sys::console::log_1(&"Micro captured".into());
     Ok(())
 }
