@@ -23,9 +23,14 @@ impl NativeAudioBackend {
         //where cpal runs our Audio Callback. CPAL wants it to stay alive, so we must give
         //ownership to its closure.
         //To not interfer with this audio callback and work in real time, we only push our sample
-        //on the ringbuff and nothing else. The consumer will get samples through the ringbuff, DSP process it and UI renders it.
-        //data is the samples themself, so we can iterate for each sample to push them in the
-        //ringbuf
+        //on the ringbuff and nothing else.
+        //The DSP will get samples through the ringbuff consumer end.
+        //On the same main thread, the UI gets the result of DSP, and renders it.
+        //On native, we could add one more thread for the DSP to not block the UI.
+        //But on wasm, we only have the main thread for the UI and DSP, so we will have to optimize
+        //compute of DSP to keep real time rendering 
+        //data is the samples themself, the slice is filled by InputCallbackInfo
+        //We can iterate in data to get samples andpush them in the ringbuf
         let stream = device
             .build_input_stream(
                 &config.into(),
