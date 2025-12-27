@@ -4,7 +4,7 @@ use web_sys;
 use audio::backend::wasm;
 #[cfg(not(target_arch = "wasm32"))]
 use audio::backend::native;
-use audio::ring::{SAMPLE_RATE, BUFFER_SIZE, AudioBridge};
+use audio::audio_bridge::{SAMPLE_RATE, BUFFER_SIZE, AudioBridge};
 use audio::backend::AudioBackend;
 use rtrb::Consumer;
 use clap::ValueEnum;
