@@ -24,8 +24,19 @@ jobs:
       - name: Format test
         run: cargo fmt --all -- --check
 
-      - name: Cargo check 
-        run: cargo check --target wasm32-unknown-unknown
+      - name: Cargo check tuners_wasm
+        run: cargo check -p tuners_wasm --target wasm32-unknown-unknown
+
+      - name: Cargo check tuners_native
+        run: cargo check -p tuners_ native
+
+      - name: Cargo check cli
+        run: cargo check -p cli
+
+      - name: Cargo check dsp
+        run: cargo check -p dsp
+
+        #cfg pour audio et gui ? 
 
       - name: Install Clippy
         run: rustup component add clippy
