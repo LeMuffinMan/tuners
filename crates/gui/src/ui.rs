@@ -31,13 +31,6 @@ impl eframe::App for TunerApp {
         ctx.set_visuals(egui::Visuals::dark());
 
         if self.audio_start {
-            #[cfg(target_arch = "wasm32")]
-            if self.rms_history.len() % 60 == 0 {
-                web_sys::console::log_1(
-                    &format!("Audio active, history size: {}", self.rms_history.len()).into(),
-                );
-            }
-
             if let Some(dsp) = &mut self.dsp {
                 dsp.update();
                 let rms = dsp.get_rms();
