@@ -7,14 +7,16 @@ use audio::backend::native;
 use audio::ring::{SAMPLE_RATE, BUFFER_SIZE, AudioBridge};
 use audio::backend::AudioBackend;
 use rtrb::Consumer;
-
+use clap::ValueEnum;
 
 pub enum UiType {
     Mobile,
     Desktop,
 }
 
-enum Visualizer {
+//crate dediee ? pour clap ?
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum Visualizer {
     Freq,
     RMS,
     WaveShape,
@@ -22,10 +24,11 @@ enum Visualizer {
 
 pub struct DigitalSignalProcessor {
     consumer: Consumer<f32>,
-    rms: f32,
+    pub rms: f32,
     sample_buffer: Vec<f32>,
 }
 
+//Tout va dans la crate DSP
 impl DigitalSignalProcessor {
     pub fn new(consumer: Consumer<f32>) -> Self {
         Self {
@@ -47,6 +50,7 @@ impl DigitalSignalProcessor {
             }
         }
 
+        //faire une macro pour les logs pour egui / cli / wasm 
         if count > 0 {
             #[cfg(target_arch = "wasm32")]
             web_sys::console::log_1(&format!("Read {} samples from ringbuffer", count).into());
@@ -84,9 +88,6 @@ pub struct TunerApp {
 }
 
 impl TunerApp {
-    // pub fn set_ring_reader(&mut self, ring: Rc<RefCell<dyn RingReader>>) {
-    //     self.ring_reader = Some(ring);
-    // }
 
     pub fn new(ui_type: UiType) -> Self {
         Self {
@@ -145,7 +146,6 @@ impl TunerApp {
         self.dsp = Some(DigitalSignalProcessor::new(bridge.consumer));
         web_sys::console::log_1(&"DSP created".into());
 
-        // Spawn la tâche async sans stocker de receiver
         wasm_bindgen_futures::spawn_local(async move {
             web_sys::console::log_1(&"Async task started".into());
             match wasm::WasmAudioBackend::new(producer).await {
@@ -187,12 +187,7 @@ impl TunerApp {
         }
 
         #[cfg(target_arch = "wasm32")]
-        {
-            // En WASM, on ne peut pas facilement stopper le backend
-            // car il vit dans la closure async
-            // Mais on peut arrêter de traiter les samples
-            web_sys::console::log_1(&"Audio stopped (cleanup limited in WASM)".into());
-        }
+        web_sys::console::log_1(&"Audio stopped (cleanup limited in WASM)".into());
 
         self.dsp = None;
         self.audio_start = false;
@@ -200,41 +195,13 @@ impl TunerApp {
     }
 }
 
-impl TunerApp {
-
-    // fn start_audio(&mut self) {
-    //     if self.audio_start {
-    //         return;
-    //     }
-    //
-    //     self.audio_start = true;
-    //     #[cfg(target_arch = "wasm32")]
-    //     {
-    //         wasm_bindgen_futures::spawn_local(async {
-    //             // match start_audio_wasm().await {
-    //             //     Ok(_) => web_sys::console::log_1(&"Micro captured".into()),
-    //             //     Err(e) => web_sys::console::error_1(&e),
-    //             // }
-    //         });
-    //     }
-    //
-    //     // Pour le build natif, tu pourrais appeler start_audio_native() ou autre
-    //     #[cfg(not(target_arch = "wasm32"))]
-    //     {
-    //         // crate::audio::start_audio_native();
-    //     }
-    // }
-
-}
-
 impl eframe::App for TunerApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         ctx.set_visuals(egui::Visuals::dark());
 
-        // Mettre à jour le DSP si audio actif
         if self.audio_start {
             #[cfg(target_arch = "wasm32")]
-            if self.rms_history.len() % 60 == 0 { // Log toutes les 60 frames
+            if self.rms_history.len() % 60 == 0 {
                 web_sys::console::log_1(&format!("Audio active, history size: {}", self.rms_history.len()).into());
             }
             
@@ -256,11 +223,6 @@ impl eframe::App for TunerApp {
         egui::SidePanel::left("controls")
             .default_width(200.0)
             .show(ctx, |ui| {
-                ui.heading("Controls");
-                
-                ui.separator();
-                
-                // Bouton Start/Stop
                 if !self.audio_start {
                     #[cfg(target_arch = "wasm32")]
                     {
@@ -276,41 +238,40 @@ impl eframe::App for TunerApp {
                     
                     #[cfg(not(target_arch = "wasm32"))]
                     {
-                        if ui.button("🎤 Start Microphone").clicked() {
+                        if ui.button("Start Microphone").clicked() {
                             self.start_audio();
                         }
                     }
                 } else {
-                    if ui.button("⏹ Stop Microphone").clicked() {
+                    if ui.button("Stop Microphone").clicked() {
                         self.stop_audio();
                     }
                     
-                    ui.label("🔴 Recording");
+                    ui.label("Recording");
                 }
                 
                 ui.separator();
                 
-                // Sélection du visualizer
                 if self.audio_start {
                     ui.label("Visualizer:");
                     
                     if ui.selectable_label(
                         matches!(self.visualizer, Visualizer::RMS),
-                        "📊 RMS"
+                        "RMS"
                     ).clicked() {
                         self.visualizer = Visualizer::RMS;
                     }
                     
                     if ui.selectable_label(
                         matches!(self.visualizer, Visualizer::Freq),
-                        "🎵 Frequency"
+                        "Frequency"
                     ).clicked() {
                         self.visualizer = Visualizer::Freq;
                     }
                     
                     if ui.selectable_label(
                         matches!(self.visualizer, Visualizer::WaveShape),
-                        "〰️ Waveform"
+                        "Waveform"
                     ).clicked() {
                         self.visualizer = Visualizer::WaveShape;
                     }
@@ -324,27 +285,24 @@ impl eframe::App for TunerApp {
                         self.render_rms(ui);
                     }
                     Visualizer::Freq => {
-                        ui.vertical_centered(|ui| {
-                            ui.label("Frequency analyzer - Coming soon");
+                        ui.vertical_centered(|_ui| {
                         });
                     }
                     Visualizer::WaveShape => {
-                        ui.vertical_centered(|ui| {
-                            ui.label("Waveform display - Coming soon");
+                        ui.vertical_centered(|_ui| {
                         });
                     }
                 }
             } else {
                 ui.vertical_centered(|ui| {
                     ui.add_space(100.0);
-                    ui.heading("Audio Tuner");
+                    ui.heading("Tuners");
                     ui.add_space(20.0);
                     ui.label("Click 'Start Microphone' to begin");
                 });
             }
         });
 
-        // Repaint continu seulement si audio actif
         if self.audio_start {
             ctx.request_repaint();
         }
