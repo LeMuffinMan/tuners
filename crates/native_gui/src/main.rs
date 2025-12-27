@@ -55,7 +55,7 @@ fn main() {
             }
 
             loop {
-                std::thread::sleep(Duration::from_millis(100));
+                std::thread::sleep(Duration::from_millis(8));
                 dsp.update();
                 match args.visualizer {
                     Visualizer::RMS => {
