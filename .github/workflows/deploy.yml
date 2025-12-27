@@ -28,7 +28,7 @@ jobs:
         run: cargo check -p tuners_wasm --target wasm32-unknown-unknown
 
       - name: Cargo check tuners_native
-        run: cargo check -p tuners_ native
+        run: cargo check -p tuners_native
 
       - name: Cargo check cli
         run: cargo check -p cli
