@@ -66,10 +66,9 @@ fn main() {
                     Visualizer::Freq => {}
                 }
             }
-        }
-        // Ui::Tui => {
-        //
-        // }
+        } // Ui::Tui => {
+          //
+          // }
     }
 }
 
