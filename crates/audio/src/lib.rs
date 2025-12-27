@@ -1,9 +1,13 @@
 pub mod source;
 pub mod ring;
-pub mod ring_reader;
 pub mod backend;
 
-pub use ring_reader::RingReader;
+#[cfg(not(target_arch = "wasm32"))]
+pub use backend::native::NativeAudioBackend;
+#[cfg(target_arch = "wasm32")]
+pub use backend::wasm::WasmAudioBackend;
+// pub use ring::AudioRingBuffer;
+// pub use ring_reader::RingReader;
 
 #[cfg(test)]
 mod tests {

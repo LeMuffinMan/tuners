@@ -1,106 +1,142 @@
+use web_sys::MediaStreamConstraints;
 use wasm_bindgen::prelude::*;
-use wasm_bindgen_futures::spawn_local;
-use wasm_bindgen_futures::JsFuture;
-use std::rc::Rc;
-use std::cell::RefCell;
-use crate::ring::DSPRingBuffer;
-use crate::RingReader;
+use wasm_bindgen::JsCast;
+// use crate::AudioRingBuffer;
+// use js_sys::Float32Array;
+use super::*;
+use web_sys::{AudioContext, AudioWorkletNode, MediaStream};
+use rtrb::Producer;
 
-thread_local! {
-    pub static GLOBAL_RING: RefCell<Option<Rc<RefCell<DSPRingBuffer>>>> = RefCell::new(None);
+pub struct WasmAudioBackend {
+    audio_context: Option<AudioContext>,
+    worklet_node: Option<AudioWorkletNode>,
+    is_running: bool,
 }
 
+impl WasmAudioBackend {
+    pub async fn new(producer: Producer<f32>) -> Result<Self, String> {
+        let audio_context = AudioContext::new()
+            .map_err(|e| format!("Failed to create AudioContext: {:?}", e))?;
+        let worklet = audio_context.audio_worklet()
+            .map_err(|_| "AudioWorklet not supported")?;
+        let promise = worklet.add_module("my-processor.js")
+            .map_err(|e| format!("Faled to add module: {:?}", e))?;
 
-pub fn read_global_rms() -> f32 {
-    GLOBAL_RING.with(|g| {
-        if let Some(ring_rc) = &*g.borrow() {
-            ring_rc.borrow_mut().get_rms()
-        } else {
-            0.0
-        }
-    })
-}
+        wasm_bindgen_futures::JsFuture::from(promise)
+            .await
+            .map_err(|e| format!("Failed to load worklet: {:?}", e))?;
 
-pub fn clone_global_buffer() -> Option<Vec<f32>> {
-    GLOBAL_RING.with(|g| {
-        g.borrow().as_ref().map(|ring_rc| {
-            let ring = ring_rc.borrow();
-            ring.buffer.iter().map(|r| r.rms).collect()
+        let worklet_node = AudioWorkletNode::new(&audio_context, "my-processor")
+            .map_err(|e| format!("Failed to create worklet node: {:?}", e))?;
+
+        Self::setup_message_handler(&worklet_node, producer)?;
+
+        let media_stream = Self::get_user_media().await?;
+
+        let source_node = audio_context
+            .create_media_stream_source(&media_stream)
+            .map_err(|e| format!("Failed to create media stream source: {:?}", e))?;
+
+        source_node
+            .connect_with_audio_node(&worklet_node)
+            .map_err(|e| format!("Failed to connect source to worklet: {:?}", e))?;
+
+        //pour avoir le feedback 
+        //worklet_node.connect_with_audio_node(&udio_context.destination())
+        //  .map_err(|e| format!("Failed to connect to destination: {:?}", e))?;
+
+
+        Ok(Self {
+            audio_context: Some(audio_context),
+            worklet_node: Some(worklet_node),
+            // media_stream: Some(media_stream),
+            // source_node: Some(source_node),
+            is_running: false,
         })
-    })
-}
+    }
 
-pub fn start_audio() {
-    spawn_local(async {
-        start_audio_wasm().await.unwrap();
-    });
-}
+    async fn get_user_media() -> Result<MediaStream, String> {
+        let window = web_sys::window()
+            .ok_or("No window object")?;
 
-#[wasm_bindgen]
-pub async fn start_audio_wasm() -> Result<(), JsValue> {
-    use web_sys::*;
+        let navigator = window.navigator();
+        let media_devices = navigator.media_devices()
+            .map_err(|_| "MediaDevices not supported")?;
 
-    let audio_ctx = AudioContext::new()?;
+        let mut constraints = MediaStreamConstraints::new();
+        constraints.audio(&JsValue::TRUE);
+        constraints.video(&JsValue::FALSE);
 
-    //we only want microphone input
-    let constraints = {
-        let c = MediaStreamConstraints::new();
-        c.set_audio(&JsValue::TRUE);
-        c
-    };
+        let promise = media_devices
+            .get_user_media_with_constraints(&constraints)
+            .map_err(|e| format!("getUserMedia failed: {:?}", e))?;
 
-    //This async func waits, through js, authorization for microphone access
-    let stream = wasm_bindgen_futures::JsFuture::from(
-        window()
-            .unwrap()
-            .navigator()
-            .media_devices()?
-            .get_user_media_with_constraints(&constraints)?,
-    )
-    .await?
-    .dyn_into::<MediaStream>()?;
+        let result = wasm_bindgen_futures::JsFuture::from(promise)
+            .await
+            .map_err(|e| format!("Failed to get media stream: {:?}", e))?;
 
-    //we create a node to connect with our AudioWorklet
-    let source = audio_ctx.create_media_stream_source(&stream)?;
+        let media_stream: MediaStream = result
+            .dyn_into()
+            .map_err(|_| "Failed to cast MediaStream")?;
 
-    //this load an audioworklet from our declaration in my-processor, 
-    let worklet = audio_ctx.audio_worklet()?;
-    JsFuture::from(worklet.add_module("my-processor.js")?).await?;
+        Ok(media_stream)
+    }
 
-    //now we can connect the microphone to our audio processor
-    let worklet = AudioWorkletNode::new(&audio_ctx, "my-processor")?;
-    source.connect_with_audio_node(&worklet)?;
-
-    //We now initialise the ring buffer : 2 seconds, 48 kHz 
-    let ring = Rc::new(RefCell::new(DSPRingBuffer::new(48_000 * 2)));
-    GLOBAL_RING.with(|g| *g.borrow_mut() = Some(ring.clone()));
-
-    //We define a closure, that we will call for each message from our audioworklet 
-    let closure = Closure::<dyn FnMut(MessageEvent)>::new(move |e: MessageEvent| {
-        // Récupération du RMS depuis l'objet JS { rms: ... }
-        let rms = js_sys::Reflect::get(&e.data(), &JsValue::from_str("rms"))
-            .unwrap()
-            .as_f64()
-            .unwrap() as f32;
-
-        // Log dans la console
-        web_sys::console::log_1(&format!("RMS: {}", rms).into());
-
-        // Stockage dans le ring buffer
-        GLOBAL_RING.with(|g| {
-            if let Some(ring_rc) = g.borrow().as_ref() {
-                let mut ring = ring_rc.borrow_mut();
-                ring.push_rms(rms);
+    fn setup_message_handler(
+        worklet_node: &AudioWorkletNode,
+        mut producer: Producer<f32>,
+    ) -> Result<(), String> {
+        let closure = Closure::wrap(Box::new(move |event: web_sys::MessageEvent| {
+            if let Ok(array) = event.data().dyn_into::<js_sys::Float32Array>() {
+                let samples = array.to_vec();
+                for sample in samples {
+                    let _ = producer.push(sample);
+                }
             }
-        });
-    });
+        }) as Box<dyn FnMut(_)>);
 
-    // Associer le closure à l'AudioWorkletNode
-    worklet.port().unwrap().set_onmessage(Some(closure.as_ref().unchecked_ref()));
-
-    // Éviter que Rust drop le closure
-    closure.forget();
-    web_sys::console::log_1(&"Micro captured".into());
-    Ok(())
+        worklet_node.port()
+            .map_err(|_| "Failed to get port")?
+            .set_onmessage(Some(closure.as_ref().unchecked_ref()));
+        closure.forget();
+        Ok(())
+    }
 }
 
+impl AudioBackend for WasmAudioBackend {
+    fn start(&mut self) -> Result<(), String> {
+        if self.is_running {
+            return Ok(());
+        }
+        if let (Some(ctx), Some(node)) = (&self.audio_context, &self.worklet_node) {
+            let promise = ctx.resume()
+                .map_err(|e| format!("Failed to resume context: {:?}", e)) ;
+            self.is_running = true;
+        }
+        return Ok(())
+    }
+
+    fn stop(&mut self) {
+        if let Some(ctx) = &self.audio_context {
+            let _ = ctx.suspend();
+        }
+    }
+}
+
+
+// pub struct WasmBackend<'a> {
+//     pub ring: &'a mut AudioRingBuffer,
+// }
+//
+// impl<'a> WasmBackend<'a> {
+//     pub fn new(ring: &'a mut AudioRingBuffer) -> Self {
+//         Self { ring }
+//     }
+//
+//     pub fn handle_message(&mut self, data: &JsValue) {
+//         let arr: Float32Array = data.clone().dyn_into().unwrap();
+//         for sample in arr.to_vec() {
+//             self.ring.push(sample);
+//         }
+//     }
+// }

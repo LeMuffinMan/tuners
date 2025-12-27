@@ -13,9 +13,6 @@ impl TunerApp {
 
         painter.rect_filled(rect, 0.0, Color32::from_gray(30));
 
-        let rms = self.get_rms();
-
-        self.rms_history.push(rms);
         if self.rms_history.len() > width as usize {
             self.rms_history.remove(0); 
         }
