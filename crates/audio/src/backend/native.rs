@@ -22,7 +22,7 @@ impl NativeAudioBackend {
         //producer taking its ownership. Moving producer make it usable only inside this closure, 
         //where cpal runs our Audio Callback. CPAL wants it to stay alive, so we must give
         //ownership to its closure.
-        //To not interfer with this audio callback and work in real time, we only push our sample
+        //To not interfere with this audio callback and work in real time, we only push our sample
         //on the ringbuff and nothing else.
         //The DSP will get samples through the ringbuff consumer end.
         //On the same main thread, the UI gets the result of DSP, and renders it.
