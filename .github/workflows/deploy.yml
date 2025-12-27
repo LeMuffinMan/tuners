@@ -30,8 +30,19 @@ jobs:
       - name: Install Clippy
         run: rustup component add clippy
 
-      - name: Cargo clippy
-        run: cargo clippy --target wasm32-unknown-unknown -- -D warnings
+      - name: Clippy tuners_wasm
+        run: cargo clippy -p tuners_wasm --target wasm32-unknown-unknown -- -D warnings
+
+      - name: Clippy tuners_native
+        run: cargo clippy -p tuners_native 
+
+      - name: Clippy cli
+        run: cargo clippy -p cli 
+
+      - name: Clippy dsp
+        run: cargo clippy -p dsp 
+
+        #cfg for gui and audio ?
 
       - name: Install Trunk
         run: cargo install --locked trunk
