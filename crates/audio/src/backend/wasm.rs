@@ -157,7 +157,7 @@ impl AudioBackend for WasmAudioBackend {
                 .map_err(|e| format!("Failed to resume context: {:?}", e));
             self.is_running = true;
         }
-        return Ok(());
+        Ok(())
     }
 
     fn stop(&mut self) {
