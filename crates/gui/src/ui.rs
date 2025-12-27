@@ -35,11 +35,6 @@ impl eframe::App for TunerApp {
                 dsp.update();
                 let rms = dsp.get_rms();
                 self.rms_history.push(rms);
-
-                #[cfg(target_arch = "wasm32")]
-                if self.rms_history.len() % 60 == 0 {
-                    web_sys::console::log_1(&format!("Latest RMS: {}", rms).into());
-                }
             } else {
                 #[cfg(target_arch = "wasm32")]
                 web_sys::console::log_1(&"DSP is None!".into());
