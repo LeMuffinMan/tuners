@@ -1,14 +1,15 @@
 use audio::audio_bridge::{ AudioBridge, SAMPLE_RATE };
-use gui::ui::DigitalSignalProcessor;
+use dsp::DigitalSignalProcessor;
 use audio::NativeAudioBackend;
-use gui::{UiType, TunerApp, Visualizer};
+use gui::{DeviceType, TunerApp};
 use clap::{ Parser, ValueEnum };
 use audio::backend::AudioBackend;
 use std::time::Duration;
+use cli::Visualizer;
 
 //compile with cargo run -p tuners_native_gui
 
-//renommer UiType
+//renommer DeviceType
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum Ui {
     Gui,
@@ -35,7 +36,7 @@ fn main() {
             let _ = eframe::run_native(
                 "Tuner",
                 options,
-                Box::new(|_cc| Ok(Box::new(TunerApp::new(UiType::Desktop)))),
+                Box::new(|_cc| Ok(Box::new(TunerApp::new(DeviceType::Desktop)))),
             );
         },
         Ui::Cli => {
@@ -59,7 +60,7 @@ fn main() {
                 dsp.update();
                 match args.visualizer {
                     Visualizer::RMS => {
-                        let bars = (dsp.get_rms() * 50.0) as usize;
+                        let bars = (dsp.get_rms() * 100.0) as usize;
                         println!("{: <50}", "█".repeat(bars));
                     },
                     Visualizer::WaveShape => {
