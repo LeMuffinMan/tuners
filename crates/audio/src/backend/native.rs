@@ -18,15 +18,23 @@ impl NativeAudioBackend {
             .default_input_config()
             .map_err(|e| format!("Failed to get config: {}", e))?;
         
+        //move on a closure force the closure to capture variables by value : here it captures
+        //producer taking its ownership. Moving producer make it usable only inside this closure, 
+        //where cpal runs our Audio Callback. CPAL wants it to stay alive, so we must give
+        //ownership to its closure.
+        //To not interfer with this audio callback and work in real time, we only push our sample
+        //on the ringbuff and nothing else. The consumer will get samples through the ringbuff, DSP process it and UI renders it.
+        //data is the samples themself, so we can iterate for each sample to push them in the
+        //ringbuf
         let stream = device
             .build_input_stream(
-                &config.into(), // config est un SupportedStreamConfig, .into() le convertit
+                &config.into(),
                 move |data: &[f32], _: &cpal::InputCallbackInfo| {
                     for &sample in data {
                         let _ = producer.push(sample);
                     }
                 },
-                move |err| eprintln!("CPAL input error: {:?}", err),
+                move |err| eprintln!("cpal input error: {:?}", err),
                 None,
             )
             .map_err(|e| format!("Failed to build stream: {}", e))?;

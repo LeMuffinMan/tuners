@@ -1,11 +1,9 @@
 use web_sys::MediaStreamConstraints;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-// use crate::AudioRingBuffer;
-// use js_sys::Float32Array;
-use super::*;
 use web_sys::{AudioContext, AudioWorkletNode, MediaStream};
 use rtrb::Producer;
+use crate::backend::AudioBackend;
 
 pub struct WasmAudioBackend {
     audio_context: Option<AudioContext>,
@@ -13,6 +11,8 @@ pub struct WasmAudioBackend {
     is_running: bool,
 }
 
+//Since we depends of WebAudio API and AudioWorklet writing to this main thread the smples from the
+//js my-processor.js, the process differs from native
 impl WasmAudioBackend {
     pub async fn new(producer: Producer<f32>) -> Result<Self, String> {
         let audio_context = AudioContext::new()
@@ -41,7 +41,7 @@ impl WasmAudioBackend {
             .connect_with_audio_node(&worklet_node)
             .map_err(|e| format!("Failed to connect source to worklet: {:?}", e))?;
 
-        //pour avoir le feedback 
+        //audio feedback 
         //worklet_node.connect_with_audio_node(&udio_context.destination())
         //  .map_err(|e| format!("Failed to connect to destination: {:?}", e))?;
 
@@ -49,12 +49,11 @@ impl WasmAudioBackend {
         Ok(Self {
             audio_context: Some(audio_context),
             worklet_node: Some(worklet_node),
-            // media_stream: Some(media_stream),
-            // source_node: Some(source_node),
             is_running: false,
         })
     }
 
+    // https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
     async fn get_user_media() -> Result<MediaStream, String> {
         let window = web_sys::window()
             .ok_or("No window object")?;
@@ -65,7 +64,6 @@ impl WasmAudioBackend {
 
         let constraints = MediaStreamConstraints::new();
         constraints.set_audio(&JsValue::TRUE);
-        // constraints.video(&JsValue::FALSE);
 
         let promise = media_devices
             .get_user_media_with_constraints(&constraints)
@@ -108,7 +106,7 @@ impl AudioBackend for WasmAudioBackend {
         if self.is_running {
             return Ok(());
         }
-        //faire qqchose de node ?
+        //faire qqchose de node ? promise ? 
         if let (Some(ctx), Some(_node)) = (&self.audio_context, &self.worklet_node) {
             let _promise = ctx.resume()
                 .map_err(|e| format!("Failed to resume context: {:?}", e)) ;
@@ -124,20 +122,3 @@ impl AudioBackend for WasmAudioBackend {
     }
 }
 
-
-// pub struct WasmBackend<'a> {
-//     pub ring: &'a mut AudioRingBuffer,
-// }
-//
-// impl<'a> WasmBackend<'a> {
-//     pub fn new(ring: &'a mut AudioRingBuffer) -> Self {
-//         Self { ring }
-//     }
-//
-//     pub fn handle_message(&mut self, data: &JsValue) {
-//         let arr: Float32Array = data.clone().dyn_into().unwrap();
-//         for sample in arr.to_vec() {
-//             self.ring.push(sample);
-//         }
-//     }
-// }
