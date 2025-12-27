@@ -1,0 +1,49 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Tuner</title>
+
+  
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: black;
+    }
+
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+    }
+  </style>
+<link rel="modulepreload" href="/tuners/tuners_wasm-69c30f866048fa91.js" crossorigin="anonymous" integrity="sha384-Hs2hSGIZo17VKMFPBii8iZ3+Y/C2QzUu+v3gpNV66nJ54lIu/Kn2XJNqUHy5ID4t"><link rel="preload" href="/tuners/tuners_wasm-69c30f866048fa91_bg.wasm" crossorigin="anonymous" integrity="sha384-EZMNDNKtW4mtRvBcCakvl7+pPfoSCTT9a1PKBmjT5tEJDuXsN7cD95qU7tuIf+UF" as="fetch" type="application/wasm"></head>
+
+<body>
+  <canvas id="tunersappid"></canvas>
+
+  <script type="module">
+    import init from "./rust_tuner.js";
+
+    await init();
+  </script>
+
+<script type="module">
+import init, * as bindings from '/tuners/tuners_wasm-69c30f866048fa91.js';
+const wasm = await init({ module_or_path: '/tuners/tuners_wasm-69c30f866048fa91_bg.wasm' });
+
+
+window.wasmBindings = bindings;
+
+
+dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
+
+</script></body>
+</html>
+
