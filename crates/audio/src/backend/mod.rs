@@ -7,7 +7,6 @@ pub use wasm::WasmAudioBackend;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod native;
 
-
 ///This trait allows us to abstract the backend.
 ///using start and stop will call either the wasm or native one without duplicating code 
 pub trait AudioBackend {
