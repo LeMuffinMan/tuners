@@ -1,5 +1,4 @@
-pub mod source;
-pub mod ring;
+pub mod audio_bridge;
 pub mod backend;
 
 #[cfg(not(target_arch = "wasm32"))]
