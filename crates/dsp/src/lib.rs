@@ -1,6 +1,5 @@
-
-use rtrb::Consumer;
 use audio::audio_bridge::BUFFER_SIZE;
+use rtrb::Consumer;
 
 pub struct DigitalSignalProcessor {
     consumer: Consumer<f32>,
@@ -29,7 +28,7 @@ impl DigitalSignalProcessor {
             }
         }
 
-        //faire une macro pour les logs pour egui / cli / wasm 
+        //faire une macro pour les logs pour egui / cli / wasm
         if count > 0 {
             #[cfg(target_arch = "wasm32")]
             web_sys::console::log_1(&format!("Read {} samples from ringbuffer", count).into());
@@ -38,8 +37,8 @@ impl DigitalSignalProcessor {
         if self.sample_buffer.is_empty() {
             #[cfg(target_arch = "wasm32")]
             web_sys::console::log_1(&"No samples available".into());
-            self.rms = 0.0; 
-            return; 
+            self.rms = 0.0;
+            return;
         };
 
         let sum: f32 = self.sample_buffer.iter().map(|&s| s * s).sum();
@@ -53,8 +52,6 @@ impl DigitalSignalProcessor {
         self.rms
     }
 }
-
-
 
 // pub fn freq_to_tune(freq: f32) -> String {
 //         let tunes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];

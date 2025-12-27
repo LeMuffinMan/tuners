@@ -1,6 +1,5 @@
-
 use crate::TunerApp;
-use egui::{ Rect, Pos2, Color32 };
+use egui::{Color32, Pos2, Rect};
 
 impl TunerApp {
     pub fn render_rms(&mut self, ui: &mut egui::Ui) {
@@ -14,13 +13,13 @@ impl TunerApp {
         painter.rect_filled(rect, 0.0, Color32::from_gray(30));
 
         if self.rms_history.len() > width as usize {
-            self.rms_history.remove(0); 
+            self.rms_history.remove(0);
         }
 
         let n = self.rms_history.len();
         for (i, &v) in self.rms_history.iter().enumerate() {
             let bar_height = v * height;
-            let x = rect.right() - n as f32 + i as f32; 
+            let x = rect.right() - n as f32 + i as f32;
             painter.rect_filled(
                 Rect::from_min_max(
                     Pos2::new(x, rect.bottom() - bar_height),
