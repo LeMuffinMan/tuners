@@ -63,9 +63,9 @@ impl WasmAudioBackend {
         let media_devices = navigator.media_devices()
             .map_err(|_| "MediaDevices not supported")?;
 
-        let mut constraints = MediaStreamConstraints::new();
-        constraints.audio(&JsValue::TRUE);
-        constraints.video(&JsValue::FALSE);
+        let constraints = MediaStreamConstraints::new();
+        constraints.set_audio(&JsValue::TRUE);
+        // constraints.video(&JsValue::FALSE);
 
         let promise = media_devices
             .get_user_media_with_constraints(&constraints)
@@ -108,8 +108,9 @@ impl AudioBackend for WasmAudioBackend {
         if self.is_running {
             return Ok(());
         }
-        if let (Some(ctx), Some(node)) = (&self.audio_context, &self.worklet_node) {
-            let promise = ctx.resume()
+        //faire qqchose de node ?
+        if let (Some(ctx), Some(_node)) = (&self.audio_context, &self.worklet_node) {
+            let _promise = ctx.resume()
                 .map_err(|e| format!("Failed to resume context: {:?}", e)) ;
             self.is_running = true;
         }

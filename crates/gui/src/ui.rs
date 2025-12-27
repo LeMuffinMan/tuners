@@ -1,10 +1,6 @@
 #[cfg(target_arch = "wasm32")]
 use web_sys;
 #[cfg(target_arch = "wasm32")]
-use std::rc::Rc;
-#[cfg(target_arch = "wasm32")]
-use std::cell::RefCell;
-#[cfg(target_arch = "wasm32")]
 use audio::backend::wasm;
 #[cfg(not(target_arch = "wasm32"))]
 use audio::backend::native;
@@ -51,8 +47,8 @@ impl DigitalSignalProcessor {
             }
         }
 
-        #[cfg(target_arch = "wasm32")]
         if count > 0 {
+            #[cfg(target_arch = "wasm32")]
             web_sys::console::log_1(&format!("Read {} samples from ringbuffer", count).into());
         }
 
@@ -80,8 +76,6 @@ pub struct TunerApp {
     pub ui_type : UiType, 
     #[cfg(not(target_arch = "wasm32"))]
     backend: Option<native::NativeAudioBackend>,
-    #[cfg(target_arch = "wasm32")]
-    backend: Rc<RefCell<Option<wasm::WasmAudioBackend>>>,
     visualizer: Visualizer,
     pub audio_start: bool,
     pub rms_history: Vec<f32>,
@@ -100,8 +94,6 @@ impl TunerApp {
             ui_type,
             #[cfg(not(target_arch = "wasm32"))]
             backend: None,
-            #[cfg(target_arch = "wasm32")]
-            backend: Rc::new(RefCell::new(None)),
             visualizer: Visualizer::RMS,
             audio_start: false,
             rms_history: Vec::new(),
