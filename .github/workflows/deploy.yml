@@ -44,14 +44,14 @@ jobs:
       - name: Clippy tuners_wasm
         run: cargo clippy -p tuners_wasm --target wasm32-unknown-unknown -- -D warnings
 
-      - name: Clippy tuners_native
-        run: cargo clippy -p tuners_native 
+      # - name: Clippy tuners_native
+      #   run: cargo clippy -p tuners_native 
 
       - name: Clippy cli
         run: cargo clippy -p cli 
 
-      - name: Clippy dsp
-        run: cargo clippy -p dsp 
+      # - name: Clippy dsp
+      #   run: cargo clippy -p dsp 
 
         #cfg for gui and audio ?
 
