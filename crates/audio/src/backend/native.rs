@@ -29,8 +29,8 @@ impl NativeAudioBackend {
         //On native, we could add one more thread for the DSP to not block the UI.
         //But on wasm, we only have the main thread for the UI and DSP, so we will have to optimize
         //compute of DSP to keep real time rendering 
-        //data is the samples themself, the slice is filled by InputCallbackInfo
-        //We can iterate in data to get samples andpush them in the ringbuf
+        //data is the samples themself, the slice is provided by InputCallbackInfo
+        //We can iterate in data to get samples and push them in the ringbuf
         let stream = device
             .build_input_stream(
                 &config.into(),

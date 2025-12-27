@@ -3,7 +3,7 @@ use wasm_bindgen::prelude::*;
 use eframe::App;
 
 // use tuner_dsp::{autocorrelation, freq_to_tune};
-use gui::{UiType, TunerApp};
+use gui::{DeviceType, TunerApp};
 
 ///This is our end point, we init the canvas and the runner to run our UI
 #[wasm_bindgen(start)]
@@ -27,12 +27,12 @@ pub async fn start() -> Result<(), JsValue> {
         .await
 }
 
-fn get_ui_type(window: web_sys::Window) -> UiType {
+fn get_ui_type(window: web_sys::Window) -> DeviceType {
     let ua = window.navigator().user_agent().unwrap_or_default();
     let ui_type = ua.to_lowercase().contains("mobi") || window.inner_width().unwrap().as_f64().unwrap_or(1024.0) < 800.0;
     match ui_type {
-        true => UiType::Mobile,
-        false => UiType::Desktop,
+        true => DeviceType::Mobile,
+        false => DeviceType::Desktop,
     }
 }
 

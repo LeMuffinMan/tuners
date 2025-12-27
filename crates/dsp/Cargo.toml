@@ -1,10 +1,13 @@
 [package]
-name = "tuner_dsp"
+name = "dsp"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+audio = { version = "0.1.0", path = "../audio" }
+rtrb = "0.3.2"
+web-sys = "0.3"
 
 [lib]
-name = "tuner_dsp"
+name = "dsp"
 path = "src/lib.rs"

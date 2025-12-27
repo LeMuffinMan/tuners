@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-tuner_dsp = { path = "../dsp" }
+dsp = { path = "../dsp" }
 audio = { path = "../audio" }
 gui = { path = "../gui" }
 console_error_panic_hook = "0.1.7"
@@ -23,6 +23,7 @@ web-sys = { version = "0.3", features = [
 egui = "0.33.3"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4.56"
+# cli = { version = "0.1.0", path = "../cli" }
 
 [lib]
 name = "tuners_wasm"

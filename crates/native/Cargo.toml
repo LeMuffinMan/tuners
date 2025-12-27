@@ -1,17 +1,18 @@
 [package]
-name = "tuners_native_gui"
+name = "tuners_native"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-tuner_dsp = { path = "../dsp" }
+dsp = { path = "../dsp" }
 audio = { path = "../audio" }
 gui = { path = "../gui" }
+cli = { path = "../cli" }
 cpal = "0.17.0"
 winit = "0.30.12"
 eframe = "0.33.3"
 clap = { version = "4.5.53", features = ["derive"] }
 
 [[bin]]
-name = "tuners_native_gui"
+name = "tuners_native"
 path = "src/main.rs"  

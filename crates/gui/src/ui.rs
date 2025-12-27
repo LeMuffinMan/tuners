@@ -4,80 +4,19 @@ use web_sys;
 use audio::backend::wasm;
 #[cfg(not(target_arch = "wasm32"))]
 use audio::backend::native;
-use audio::audio_bridge::{SAMPLE_RATE, BUFFER_SIZE, AudioBridge};
+use audio::audio_bridge::{SAMPLE_RATE, AudioBridge};
 use audio::backend::AudioBackend;
-use rtrb::Consumer;
-use clap::ValueEnum;
+use cli::Visualizer;
+use dsp::DigitalSignalProcessor;
 
-pub enum UiType {
+pub enum DeviceType {
     Mobile,
     Desktop,
 }
 
-//crate dediee ? pour clap ?
-#[derive(Debug, Clone, Copy, ValueEnum)]
-pub enum Visualizer {
-    Freq,
-    RMS,
-    WaveShape,
-}
-
-pub struct DigitalSignalProcessor {
-    consumer: Consumer<f32>,
-    pub rms: f32,
-    sample_buffer: Vec<f32>,
-}
-
-//Tout va dans la crate DSP
-impl DigitalSignalProcessor {
-    pub fn new(consumer: Consumer<f32>) -> Self {
-        Self {
-            consumer,
-            sample_buffer: Vec::with_capacity(BUFFER_SIZE),
-            rms: 0.0,
-        }
-    }
-
-    pub fn update(&mut self) {
-        self.sample_buffer.clear();
-
-        let mut count = 0;
-        while let Ok(sample) = self.consumer.pop() {
-            self.sample_buffer.push(sample);
-            count += 1;
-            if self.sample_buffer.len() >= BUFFER_SIZE {
-                break;
-            }
-        }
-
-        //faire une macro pour les logs pour egui / cli / wasm 
-        if count > 0 {
-            #[cfg(target_arch = "wasm32")]
-            web_sys::console::log_1(&format!("Read {} samples from ringbuffer", count).into());
-        }
-
-        if self.sample_buffer.is_empty() {
-            #[cfg(target_arch = "wasm32")]
-            web_sys::console::log_1(&"No samples available".into());
-            self.rms = 0.0; 
-            return; 
-        };
-
-        let sum: f32 = self.sample_buffer.iter().map(|&s| s * s).sum();
-        self.rms = (sum / self.sample_buffer.len() as f32).sqrt();
-
-        #[cfg(target_arch = "wasm32")]
-        web_sys::console::log_1(&format!("RMS calculated: {}", self.rms).into());
-    }
-
-    pub fn get_rms(&self) -> f32 {
-        self.rms
-    }
-}
-
 pub struct TunerApp {
     pub dsp: Option<DigitalSignalProcessor>,
-    pub ui_type : UiType, 
+    pub ui_type : DeviceType, 
     #[cfg(not(target_arch = "wasm32"))]
     backend: Option<native::NativeAudioBackend>,
     visualizer: Visualizer,
@@ -87,9 +26,131 @@ pub struct TunerApp {
     audio_initializing: bool,
 }
 
+impl eframe::App for TunerApp {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        ctx.set_visuals(egui::Visuals::dark());
+
+        if self.audio_start {
+            #[cfg(target_arch = "wasm32")]
+            if self.rms_history.len() % 60 == 0 {
+                web_sys::console::log_1(&format!("Audio active, history size: {}", self.rms_history.len()).into());
+            }
+            
+            if let Some(dsp) = &mut self.dsp {
+                dsp.update();
+                let rms = dsp.get_rms();
+                self.rms_history.push(rms);
+                
+                #[cfg(target_arch = "wasm32")]
+                if self.rms_history.len() % 60 == 0 {
+                    web_sys::console::log_1(&format!("Latest RMS: {}", rms).into());
+                }
+            } else {
+                #[cfg(target_arch = "wasm32")]
+                web_sys::console::log_1(&"DSP is None!".into());
+            }
+        }
+        egui::TopBottomPanel::bottom("source code").show(ctx, |ui| {
+            ui.with_layout(
+                egui::Layout::centered_and_justified(egui::Direction::LeftToRight),
+                |ui| {
+                    ui.hyperlink_to("Source code", "https://github.com/LeMuffinMan/tuners");
+                },
+            );
+        });
+        egui::SidePanel::left("controls")
+            .default_width(200.0)
+            .show(ctx, |ui| {
+                if !self.audio_start {
+                    #[cfg(target_arch = "wasm32")]
+                    {
+                        if self.audio_initializing {
+                            ui.horizontal(|ui| {
+                                ui.spinner();
+                                ui.label("Starting...");
+                            });
+                        } else if ui.button("🎤 Start Microphone").clicked() {
+                            self.start_audio();
+                        }
+                    }
+                    
+                    #[cfg(not(target_arch = "wasm32"))]
+                    {
+                        if ui.button("Start Microphone").clicked() {
+                            self.start_audio();
+                        }
+                    }
+                } else {
+                    if ui.button("Stop Microphone").clicked() {
+                        self.stop_audio();
+                    }
+                    
+                    ui.label("Recording");
+                }
+                
+                ui.separator();
+                
+                if self.audio_start {
+                    ui.label("Visualizer:");
+                    
+                    if ui.selectable_label(
+                        matches!(self.visualizer, Visualizer::RMS),
+                        "RMS"
+                    ).clicked() {
+                        self.visualizer = Visualizer::RMS;
+                    }
+                    
+                    if ui.selectable_label(
+                        matches!(self.visualizer, Visualizer::Freq),
+                        "Frequency"
+                    ).clicked() {
+                        self.visualizer = Visualizer::Freq;
+                    }
+                    
+                    if ui.selectable_label(
+                        matches!(self.visualizer, Visualizer::WaveShape),
+                        "Waveform"
+                    ).clicked() {
+                        self.visualizer = Visualizer::WaveShape;
+                    }
+                }
+            });
+
+        egui::CentralPanel::default().show(ctx, |ui| {
+            if self.audio_start {
+                match self.visualizer {
+                    Visualizer::RMS => {
+                        self.render_rms(ui);
+                    }
+                    Visualizer::Freq => {
+                        ui.vertical_centered(|_ui| {
+                        });
+                    }
+                    Visualizer::WaveShape => {
+                        ui.vertical_centered(|_ui| {
+                        });
+                    }
+                }
+            } else {
+                ui.vertical_centered(|ui| {
+                    ui.add_space(100.0);
+                    ui.heading("Tune.rs");
+                    ui.add_space(20.0);
+                    ui.label("Click 'Start Microphone' to begin");
+                });
+            }
+        });
+
+
+        if self.audio_start {
+            ctx.request_repaint();
+        }
+    }
+}
+
 impl TunerApp {
 
-    pub fn new(ui_type: UiType) -> Self {
+    pub fn new(ui_type: DeviceType) -> Self {
         Self {
             dsp: None,
             ui_type,
@@ -103,6 +164,7 @@ impl TunerApp {
         }
     }
 
+    //comment evacuer ce code duplique ?
     #[cfg(not(target_arch = "wasm32"))]
     fn start_audio(&mut self) {
         if self.audio_start {
@@ -195,116 +257,3 @@ impl TunerApp {
     }
 }
 
-impl eframe::App for TunerApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        ctx.set_visuals(egui::Visuals::dark());
-
-        if self.audio_start {
-            #[cfg(target_arch = "wasm32")]
-            if self.rms_history.len() % 60 == 0 {
-                web_sys::console::log_1(&format!("Audio active, history size: {}", self.rms_history.len()).into());
-            }
-            
-            if let Some(dsp) = &mut self.dsp {
-                dsp.update();
-                let rms = dsp.get_rms();
-                self.rms_history.push(rms);
-                
-                #[cfg(target_arch = "wasm32")]
-                if self.rms_history.len() % 60 == 0 {
-                    web_sys::console::log_1(&format!("Latest RMS: {}", rms).into());
-                }
-            } else {
-                #[cfg(target_arch = "wasm32")]
-                web_sys::console::log_1(&"DSP is None!".into());
-            }
-        }
-
-        egui::SidePanel::left("controls")
-            .default_width(200.0)
-            .show(ctx, |ui| {
-                if !self.audio_start {
-                    #[cfg(target_arch = "wasm32")]
-                    {
-                        if self.audio_initializing {
-                            ui.horizontal(|ui| {
-                                ui.spinner();
-                                ui.label("Starting...");
-                            });
-                        } else if ui.button("🎤 Start Microphone").clicked() {
-                            self.start_audio();
-                        }
-                    }
-                    
-                    #[cfg(not(target_arch = "wasm32"))]
-                    {
-                        if ui.button("Start Microphone").clicked() {
-                            self.start_audio();
-                        }
-                    }
-                } else {
-                    if ui.button("Stop Microphone").clicked() {
-                        self.stop_audio();
-                    }
-                    
-                    ui.label("Recording");
-                }
-                
-                ui.separator();
-                
-                if self.audio_start {
-                    ui.label("Visualizer:");
-                    
-                    if ui.selectable_label(
-                        matches!(self.visualizer, Visualizer::RMS),
-                        "RMS"
-                    ).clicked() {
-                        self.visualizer = Visualizer::RMS;
-                    }
-                    
-                    if ui.selectable_label(
-                        matches!(self.visualizer, Visualizer::Freq),
-                        "Frequency"
-                    ).clicked() {
-                        self.visualizer = Visualizer::Freq;
-                    }
-                    
-                    if ui.selectable_label(
-                        matches!(self.visualizer, Visualizer::WaveShape),
-                        "Waveform"
-                    ).clicked() {
-                        self.visualizer = Visualizer::WaveShape;
-                    }
-                }
-            });
-
-        egui::CentralPanel::default().show(ctx, |ui| {
-            if self.audio_start {
-                match self.visualizer {
-                    Visualizer::RMS => {
-                        self.render_rms(ui);
-                    }
-                    Visualizer::Freq => {
-                        ui.vertical_centered(|_ui| {
-                        });
-                    }
-                    Visualizer::WaveShape => {
-                        ui.vertical_centered(|_ui| {
-                        });
-                    }
-                }
-            } else {
-                ui.vertical_centered(|ui| {
-                    ui.add_space(100.0);
-                    ui.heading("Tuners");
-                    ui.add_space(20.0);
-                    ui.label("Click 'Start Microphone' to begin");
-                });
-            }
-        });
-
-        if self.audio_start {
-            ctx.request_repaint();
-        }
-    }
-}
