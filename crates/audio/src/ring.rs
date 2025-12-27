@@ -1,149 +1,67 @@
 
+use rtrb::{RingBuffer, Consumer, Producer};
 
-#[derive(Debug)]
-pub struct AudioRingBuffer {
-    buffer: Vec<f32>,
-    capacity: usize,
-    write_pos: usize,
-    read_pos: usize,
-    len: usize,
+pub const SAMPLE_RATE: u32 = 44100;
+pub const BUFFER_SIZE: usize = 4096;
+
+pub trait AudioBackend {
+    fn start(&mut self);
+    fn stop(&mut self);
 }
 
-#[derive(Debug, Clone)]
-pub struct DSPRingBuffer {
-    pub buffer: Vec<DSPResult>,
-    pub capacity: usize,
-    pub write_pos: usize,
-    pub len: usize,
+pub struct AudioBridge {
+    pub consumer: Consumer<f32>,
 }
 
-#[derive(Debug, Clone)]
-pub struct DSPResult {
-    pub rms: f32,
-    // pub pitch: f32,
-    // pub spectrum: Vec<f32>,
+impl AudioBridge {
+    pub fn new(buffer_capacity: usize) -> (Self, Producer<f32>) {
+        let (mut producer, mut consumer) = RingBuffer::new(buffer_capacity);
+        (Self { consumer }, producer)
+    }
 }
 
 
-impl DSPRingBuffer {
-    pub fn new(capacity: usize) -> Self {
-        Self {
-            buffer: vec![
-                DSPResult { rms: 0.0 } ;
-                capacity
-            ],
-            capacity,
-            write_pos: 0,
-            len: 0,
-        }
-    }
-
-    pub fn push_rms(&mut self, rms: f32) {
-        self.buffer[self.write_pos] = DSPResult { rms };
-        self.write_pos = (self.write_pos + 1) % self.capacity;
-
-        if self.len < self.capacity {
-            self.len += 1;
-        }
-    }
-
-    pub fn last(&self) -> Option<&DSPResult> {
-        if self.len == 0 {
-            None
-        } else {
-            let last_pos = (self.write_pos + self.capacity - 1) % self.capacity;
-            Some(&self.buffer[last_pos])
-        }
-    }
-
-    pub fn len(&self) -> usize {
-        self.len
-    }
-
-    pub fn capacity(&self) -> usize {
-        self.capacity
-    }
-}
-
-impl AudioRingBuffer {
-    pub fn push_slice(&mut self, samples: &[f32]) {
-        let mut remaining = samples;
-        while !remaining.is_empty() {
-            // Espace restant jusqu'à la fin du buffer
-            let end_space = self.capacity - self.write_pos;
-            // Combien d'éléments on peut écrire dans ce segment
-            let n = remaining.len().min(end_space);
-
-            // Copier dans le buffer
-            self.buffer[self.write_pos..self.write_pos + n].copy_from_slice(&remaining[..n]);
-
-            // Mettre à jour write_pos
-            self.write_pos = (self.write_pos + n) % self.capacity;
-
-            // Mettre à jour read_pos si on dépasse la capacité
-            if self.len + n > self.capacity {
-                self.read_pos = (self.read_pos + (self.len + n - self.capacity)) % self.capacity;
-            }
-
-            // Mettre à jour la longueur
-            self.len = (self.len + n).min(self.capacity);
-
-            // Avancer dans le slice
-            remaining = &remaining[n..];
-        }
-    }
-    pub fn peek_block(&self, out: &mut [f32]) -> usize {
-        let n = out.len().min(self.len);
-        let mut pos = self.read_pos;
-        for i in 0..n {
-            out[i] = self.buffer[pos];
-            pos = (pos + 1) % self.capacity;
-        }
-        n
-    }
-    pub fn new(capacity: usize) -> Self {
-        Self {
-            buffer: vec![0.0; capacity],
-            capacity,
-            write_pos: 0,
-            read_pos: 0,
-            len: 0,
-        }
-    }
-
-    pub fn push_samples(&mut self, samples: &[f32]) {
-        for &sample in samples {
-            self.buffer[self.write_pos] = sample;
-            self.write_pos = (self.write_pos + 1) % self.capacity;
-
-            if self.len < self.capacity {
-                self.len += 1;
-            } else {
-                self.read_pos = (self.read_pos + 1) % self.capacity;
-            }
-        }
-    }
-
-    pub fn pop_block(&mut self, out: &mut [f32]) -> usize {
-        let n = out.len().min(self.len);
-        for i in 0..n {
-            out[i] = self.buffer[self.read_pos];
-            self.read_pos = (self.read_pos + 1) % self.capacity;
-        }
-        self.len -= n;
-        n
-    }
-
-    pub fn len(&self) -> usize {
-        self.len
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.len == 0
-    }
-
-    pub fn capacity(&self) -> usize {
-        self.capacity
-    }
-}
-
+//
+//
+//
+// use rtrb::{RingBuffer, Producer, Consumer};
+//
+// pub struct AudioRingBuffer {
+//     producer: Producer<f32>,
+//     consumer: Consumer<f32>,
+//     buffer: Vec<f32>, // buffer temporaire pour UI
+// }
+//
+// impl AudioRingBuffer {
+//     pub fn new(size: usize) -> Self {
+//         let (producer, consumer) = RingBuffer::<f32>::new(size);
+//         Self { producer, consumer, buffer: Vec::new() }
+//     }
+//
+//     pub fn push(&mut self, sample: f32) {
+//         let _ = self.producer.push(sample);
+//     }
+//
+//     pub fn read_all(&mut self) -> &[f32] {
+//         self.buffer.clear();
+//         while let Ok(s) = self.consumer.pop() {
+//             self.buffer.push(s);
+//         }
+//         &self.buffer
+//     }
+//
+//     pub fn rms(&self) -> f32 {
+//         if self.buffer.is_empty() { return 0.0; }
+//         let sum: f32 = self.buffer.iter().map(|x| x*x).sum();
+//         (sum / self.buffer.len() as f32).sqrt()
+//     }
+//
+//     pub fn producer(&mut self) -> &mut Producer<f32> {
+//         &mut self.producer
+//     }
+//
+//     pub fn consumer(&mut self) -> &mut Consumer<f32> {
+//         &mut self.consumer
+//     }
+// }
+//

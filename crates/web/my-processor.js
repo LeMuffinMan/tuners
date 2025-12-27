@@ -1,32 +1,32 @@
 
 // https://github.com/RustAudio/cpal/issues/813
 //
-function computeRMS(buffer) {
-    let sum = 0;
-    for (let i = 0; i < buffer.length; i++) {
-        sum += buffer[i] * buffer[i];
-    }
-    return Math.sqrt(sum / buffer.length);
-}
-
 class MyProcessor extends AudioWorkletProcessor {
-    constructor() {
-        super();
+  constructor() {
+    super();
+    this.frameCount = 0;
+  }
+  
+  process(inputs, outputs, parameters) {
+    const input = inputs[0];
+    
+    if (input.length > 0) {
+      const channelData = input[0];
+      
+      // Log toutes les 100 frames
+      if (this.frameCount % 100 === 0) {
+        console.log(`AudioWorklet: Processing ${channelData.length} samples`);
+      }
+      this.frameCount++;
+      
+      // Envoyer au Rust
+      this.port.postMessage(channelData);
+    } else {
+      console.log("AudioWorklet: No input data");
     }
-
-    process(inputs, outputs, parameters) {
-        const inputChannels = inputs[0];
-        if (inputChannels && inputChannels.length > 0) {
-            const channelData = inputChannels[0];
-            const rms = computeRMS(channelData);
-
-            this.port.postMessage({ rms });
-
-            // this.port.postMessage({ debug: `RMS computed: ${rms}` });
-        }
-        return true;
-    }
+    
+    return true;
+  }
 }
 
-registerProcessor("my-processor", MyProcessor);
-
+registerProcessor('my-processor', MyProcessor);
