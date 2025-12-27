@@ -1,6 +1,6 @@
+use eframe::App;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
-use eframe::App;
 
 // use tuner_dsp::{autocorrelation, freq_to_tune};
 use gui::{DeviceType, TunerApp};
@@ -29,10 +29,10 @@ pub async fn start() -> Result<(), JsValue> {
 
 fn get_ui_type(window: web_sys::Window) -> DeviceType {
     let ua = window.navigator().user_agent().unwrap_or_default();
-    let ui_type = ua.to_lowercase().contains("mobi") || window.inner_width().unwrap().as_f64().unwrap_or(1024.0) < 800.0;
+    let ui_type = ua.to_lowercase().contains("mobi")
+        || window.inner_width().unwrap().as_f64().unwrap_or(1024.0) < 800.0;
     match ui_type {
         true => DeviceType::Mobile,
         false => DeviceType::Desktop,
     }
 }
-

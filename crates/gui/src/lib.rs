@@ -1,5 +1,5 @@
-pub mod ui;
 pub mod render;
+pub mod ui;
 
-pub use ui::TunerApp;
 pub use ui::DeviceType;
+pub use ui::TunerApp;

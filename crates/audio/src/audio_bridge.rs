@@ -1,5 +1,4 @@
-
-use rtrb::{RingBuffer, Consumer, Producer};
+use rtrb::{Consumer, Producer, RingBuffer};
 
 //are we sure we can ask browser our sample rate with guarantee or we use default setting ?
 pub const SAMPLE_RATE: u32 = 44100;

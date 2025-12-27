@@ -1,13 +1,13 @@
-#[cfg(target_arch = "wasm32")]
-use web_sys;
-#[cfg(target_arch = "wasm32")]
-use audio::backend::wasm;
+use audio::audio_bridge::{AudioBridge, SAMPLE_RATE};
+use audio::backend::AudioBackend;
 #[cfg(not(target_arch = "wasm32"))]
 use audio::backend::native;
-use audio::audio_bridge::{SAMPLE_RATE, AudioBridge};
-use audio::backend::AudioBackend;
+#[cfg(target_arch = "wasm32")]
+use audio::backend::wasm;
 use cli::Visualizer;
 use dsp::DigitalSignalProcessor;
+#[cfg(target_arch = "wasm32")]
+use web_sys;
 
 pub enum DeviceType {
     Mobile,
@@ -16,7 +16,7 @@ pub enum DeviceType {
 
 pub struct TunerApp {
     pub dsp: Option<DigitalSignalProcessor>,
-    pub ui_type : DeviceType, 
+    pub ui_type: DeviceType,
     #[cfg(not(target_arch = "wasm32"))]
     backend: Option<native::NativeAudioBackend>,
     visualizer: Visualizer,
@@ -33,14 +33,16 @@ impl eframe::App for TunerApp {
         if self.audio_start {
             #[cfg(target_arch = "wasm32")]
             if self.rms_history.len() % 60 == 0 {
-                web_sys::console::log_1(&format!("Audio active, history size: {}", self.rms_history.len()).into());
+                web_sys::console::log_1(
+                    &format!("Audio active, history size: {}", self.rms_history.len()).into(),
+                );
             }
-            
+
             if let Some(dsp) = &mut self.dsp {
                 dsp.update();
                 let rms = dsp.get_rms();
                 self.rms_history.push(rms);
-                
+
                 #[cfg(target_arch = "wasm32")]
                 if self.rms_history.len() % 60 == 0 {
                     web_sys::console::log_1(&format!("Latest RMS: {}", rms).into());
@@ -73,7 +75,7 @@ impl eframe::App for TunerApp {
                             self.start_audio();
                         }
                     }
-                    
+
                     #[cfg(not(target_arch = "wasm32"))]
                     {
                         if ui.button("Start Microphone").clicked() {
@@ -84,33 +86,36 @@ impl eframe::App for TunerApp {
                     if ui.button("Stop Microphone").clicked() {
                         self.stop_audio();
                     }
-                    
+
                     ui.label("Recording");
                 }
-                
+
                 ui.separator();
-                
+
                 if self.audio_start {
                     ui.label("Visualizer:");
-                    
-                    if ui.selectable_label(
-                        matches!(self.visualizer, Visualizer::RMS),
-                        "RMS"
-                    ).clicked() {
+
+                    if ui
+                        .selectable_label(matches!(self.visualizer, Visualizer::RMS), "RMS")
+                        .clicked()
+                    {
                         self.visualizer = Visualizer::RMS;
                     }
-                    
-                    if ui.selectable_label(
-                        matches!(self.visualizer, Visualizer::Freq),
-                        "Frequency"
-                    ).clicked() {
+
+                    if ui
+                        .selectable_label(matches!(self.visualizer, Visualizer::Freq), "Frequency")
+                        .clicked()
+                    {
                         self.visualizer = Visualizer::Freq;
                     }
-                    
-                    if ui.selectable_label(
-                        matches!(self.visualizer, Visualizer::WaveShape),
-                        "Waveform"
-                    ).clicked() {
+
+                    if ui
+                        .selectable_label(
+                            matches!(self.visualizer, Visualizer::WaveShape),
+                            "Waveform",
+                        )
+                        .clicked()
+                    {
                         self.visualizer = Visualizer::WaveShape;
                     }
                 }
@@ -123,12 +128,10 @@ impl eframe::App for TunerApp {
                         self.render_rms(ui);
                     }
                     Visualizer::Freq => {
-                        ui.vertical_centered(|_ui| {
-                        });
+                        ui.vertical_centered(|_ui| {});
                     }
                     Visualizer::WaveShape => {
-                        ui.vertical_centered(|_ui| {
-                        });
+                        ui.vertical_centered(|_ui| {});
                     }
                 }
             } else {
@@ -141,7 +144,6 @@ impl eframe::App for TunerApp {
             }
         });
 
-
         if self.audio_start {
             ctx.request_repaint();
         }
@@ -149,7 +151,6 @@ impl eframe::App for TunerApp {
 }
 
 impl TunerApp {
-
     pub fn new(ui_type: DeviceType) -> Self {
         Self {
             dsp: None,
@@ -175,17 +176,15 @@ impl TunerApp {
         self.dsp = Some(DigitalSignalProcessor::new(bridge.consumer));
 
         match native::NativeAudioBackend::new(producer) {
-            Ok(mut backend) => {
-                match backend.start() {
-                    Ok(_) => {
-                        self.backend = Some(backend);
-                        self.audio_start = true;
-                    }
-                    Err(e) => {
-                        eprintln!("Failed to start audio: {}", e);
-                    }
+            Ok(mut backend) => match backend.start() {
+                Ok(_) => {
+                    self.backend = Some(backend);
+                    self.audio_start = true;
                 }
-            }
+                Err(e) => {
+                    eprintln!("Failed to start audio: {}", e);
+                }
+            },
             Err(e) => {
                 eprintln!("Failed to create audio backend: {}", e);
             }
@@ -203,7 +202,9 @@ impl TunerApp {
         self.audio_initializing = true;
 
         let (bridge, producer) = AudioBridge::new(SAMPLE_RATE as usize * 2);
-        web_sys::console::log_1(&format!("Bridge created, buffer size: {}", SAMPLE_RATE * 2).into());
+        web_sys::console::log_1(
+            &format!("Bridge created, buffer size: {}", SAMPLE_RATE * 2).into(),
+        );
 
         self.dsp = Some(DigitalSignalProcessor::new(bridge.consumer));
         web_sys::console::log_1(&"DSP created".into());
@@ -213,14 +214,16 @@ impl TunerApp {
             match wasm::WasmAudioBackend::new(producer).await {
                 Ok(mut backend) => {
                     web_sys::console::log_1(&"Backend created successfully".into());
-                    
+
                     match backend.start() {
                         Ok(_) => {
                             web_sys::console::log_1(&"Backend started successfully".into());
                             std::mem::forget(backend);
                         }
                         Err(e) => {
-                            web_sys::console::error_1(&format!("Failed to start backend: {}", e).into());
+                            web_sys::console::error_1(
+                                &format!("Failed to start backend: {}", e).into(),
+                            );
                         }
                     }
                 }
@@ -256,4 +259,3 @@ impl TunerApp {
         self.rms_history.clear();
     }
 }
-
