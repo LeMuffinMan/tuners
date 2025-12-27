@@ -1,7 +1,0 @@
-[workspace]
-resolver = "2"
-members = [ "crates/audio", "crates/cli",
-    "crates/dsp",
-    "crates/native",
-    "crates/wasm"
-]
