@@ -1,12 +1,15 @@
 use audio::audio_bridge::BUFFER_SIZE;
 use rtrb::Consumer;
 
+///We use this struct to compute on samples and store results ready to be displayed by ui
 pub struct DigitalSignalProcessor {
     consumer: Consumer<f32>,
     pub rms: f32,
     sample_buffer: Vec<f32>,
 }
 
+//The Audio Callback async rust function or the AudioWorklet will write samples in the ring buf
+//the consumer end allows us to read it
 impl DigitalSignalProcessor {
     pub fn new(consumer: Consumer<f32>) -> Self {
         Self {
@@ -16,6 +19,8 @@ impl DigitalSignalProcessor {
         }
     }
 
+    //we call this function in the eframe loop
+    //at each frame, we update our sample_buffer so we work on the latests samples
     pub fn update(&mut self) {
         self.sample_buffer.clear();
 
@@ -41,11 +46,12 @@ impl DigitalSignalProcessor {
             return;
         };
 
+        //For now we only calculare RMS, but data to display by ui will compute here 
         let sum: f32 = self.sample_buffer.iter().map(|&s| s * s).sum();
         self.rms = (sum / self.sample_buffer.len() as f32).sqrt();
 
         #[cfg(target_arch = "wasm32")]
-        web_sys::console::log_1(&format!("RMS calculated: {}", self.rms).into());
+        web_sys::console::log_1(&format!("RMS: {}", self.rms).into());
     }
 
     pub fn get_rms(&self) -> f32 {

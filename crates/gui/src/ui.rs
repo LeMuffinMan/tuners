@@ -19,118 +19,24 @@ pub struct TunerApp {
     pub ui_type: DeviceType,
     #[cfg(not(target_arch = "wasm32"))]
     backend: Option<native::NativeAudioBackend>,
-    visualizer: Visualizer,
+    pub visualizer: Visualizer,
     pub audio_start: bool,
     pub rms_history: Vec<f32>,
     #[cfg(target_arch = "wasm32")]
-    audio_initializing: bool,
+    pub audio_initializing: bool, //to fix for promise / future return
 }
 
+
+///at each frame, we update the dsp, and display panels.
 impl eframe::App for TunerApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         ctx.set_visuals(egui::Visuals::dark());
-
         if self.audio_start {
-            if let Some(dsp) = &mut self.dsp {
-                dsp.update();
-                let rms = dsp.get_rms();
-                self.rms_history.push(rms);
-            } else {
-                #[cfg(target_arch = "wasm32")]
-                web_sys::console::log_1(&"DSP is None!".into());
-            }
+            self.update_dsp();
         }
-        egui::TopBottomPanel::bottom("source code").show(ctx, |ui| {
-            ui.with_layout(
-                egui::Layout::centered_and_justified(egui::Direction::LeftToRight),
-                |ui| {
-                    ui.hyperlink_to("Source code", "https://github.com/LeMuffinMan/tuners");
-                },
-            );
-        });
-        egui::SidePanel::left("controls")
-            .default_width(200.0)
-            .show(ctx, |ui| {
-                if !self.audio_start {
-                    #[cfg(target_arch = "wasm32")]
-                    {
-                        if self.audio_initializing {
-                            ui.horizontal(|ui| {
-                                ui.spinner();
-                                ui.label("Starting...");
-                            });
-                        } else if ui.button("🎤 Start Microphone").clicked() {
-                            self.start_audio();
-                        }
-                    }
-
-                    #[cfg(not(target_arch = "wasm32"))]
-                    {
-                        if ui.button("Start Microphone").clicked() {
-                            self.start_audio();
-                        }
-                    }
-                } else {
-                    if ui.button("Stop Microphone").clicked() {
-                        self.stop_audio();
-                    }
-
-                    ui.label("Recording");
-                }
-
-                ui.separator();
-
-                if self.audio_start {
-                    ui.label("Visualizer:");
-
-                    if ui
-                        .selectable_label(matches!(self.visualizer, Visualizer::RMS), "RMS")
-                        .clicked()
-                    {
-                        self.visualizer = Visualizer::RMS;
-                    }
-
-                    if ui
-                        .selectable_label(matches!(self.visualizer, Visualizer::Freq), "Frequency")
-                        .clicked()
-                    {
-                        self.visualizer = Visualizer::Freq;
-                    }
-
-                    if ui
-                        .selectable_label(
-                            matches!(self.visualizer, Visualizer::WaveShape),
-                            "Waveform",
-                        )
-                        .clicked()
-                    {
-                        self.visualizer = Visualizer::WaveShape;
-                    }
-                }
-            });
-
-        egui::CentralPanel::default().show(ctx, |ui| {
-            if self.audio_start {
-                match self.visualizer {
-                    Visualizer::RMS => {
-                        self.render_rms(ui);
-                    }
-                    Visualizer::Freq => {
-                        ui.vertical_centered(|_ui| {});
-                    }
-                    Visualizer::WaveShape => {
-                        ui.vertical_centered(|_ui| {});
-                    }
-                }
-            } else {
-                ui.vertical_centered(|ui| {
-                    ui.add_space(100.0);
-                    ui.heading("Tune.rs");
-                    ui.add_space(20.0);
-                    ui.label("Click 'Start Microphone' to begin");
-                });
-            }
-        });
+        self.source_code_panel(ctx);
+        self.control_panel(ctx);
+        self.central_panel(ctx);
 
         if self.audio_start {
             ctx.request_repaint();
@@ -139,6 +45,7 @@ impl eframe::App for TunerApp {
 }
 
 impl TunerApp {
+
     pub fn new(ui_type: DeviceType) -> Self {
         Self {
             dsp: None,
@@ -153,13 +60,26 @@ impl TunerApp {
         }
     }
 
+
+    pub fn update_dsp(&mut self) {
+        if let Some(dsp) = &mut self.dsp {
+            dsp.update();
+            let rms = dsp.get_rms();
+            self.rms_history.push(rms);
+        } else {
+            #[cfg(target_arch = "wasm32")]
+            web_sys::console::log_1(&"DSP is None!".into());
+        }
+    }
+
     //comment evacuer ce code duplique ?
     #[cfg(not(target_arch = "wasm32"))]
-    fn start_audio(&mut self) {
+    pub fn start_audio(&mut self) {
         if self.audio_start {
             return;
         }
 
+        //we set our ringbuff to contain 2 seconds of audio, sampled at SAMPLE_RATE
         let (bridge, producer) = AudioBridge::new(SAMPLE_RATE as usize * 2);
         self.dsp = Some(DigitalSignalProcessor::new(bridge.consumer));
 
@@ -180,7 +100,7 @@ impl TunerApp {
     }
 
     #[cfg(target_arch = "wasm32")]
-    fn start_audio(&mut self) {
+    pub fn start_audio(&mut self) {
         if self.audio_start || self.audio_initializing {
             web_sys::console::log_1(&"Already started or initializing".into());
             return;
@@ -221,12 +141,13 @@ impl TunerApp {
             }
         });
 
+        //set audio_start au retour de la promise / future
         self.audio_start = true;
         self.audio_initializing = false;
         web_sys::console::log_1(&"Audio marked as started".into());
     }
 
-    fn stop_audio(&mut self) {
+    pub fn stop_audio(&mut self) {
         if !self.audio_start {
             return;
         }
@@ -239,8 +160,9 @@ impl TunerApp {
             self.backend = None;
         }
 
+        //au click sur start mic on devrait relancer l'audio, ou garder le backend et le reprendre
         #[cfg(target_arch = "wasm32")]
-        web_sys::console::log_1(&"Audio stopped (cleanup limited in WASM)".into());
+        web_sys::console::log_1(&"Wasm backend unplugged".into());
 
         self.dsp = None;
         self.audio_start = false;
