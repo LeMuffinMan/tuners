@@ -117,6 +117,7 @@ impl WasmAudioBackend {
             //We must translate in the other way : JS sent to Rust Float32Array
             if let Ok(array) = event.data().dyn_into::<js_sys::Float32Array>() {
                 //so we turn this array into a Vec<f32>, with we can work on in rust
+                //HERE i allocate, i should find another way
                 let samples = array.to_vec();
                 //now, our samples are ready to be pushed in the ringbuf
                 for sample in samples {
