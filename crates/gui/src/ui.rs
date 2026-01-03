@@ -46,12 +46,12 @@ impl eframe::App for TunerApp {
                 egui::CentralPanel::default().show(ctx, |ui| {
                     let max_width = ui.available_width().min(420.0);
 
-                    ui.vertical_centered(|ui| {
+                    // ui.vertical_centered(|ui| {
                         ui.set_max_width(max_width);
 
-                        egui::ScrollArea::vertical()
-                            .auto_shrink([false; 2])
-                            .show(ui, |ui| {
+                        // egui::ScrollArea::vertical()
+                        //     .auto_shrink([false; 2])
+                        //     .show(ui, |ui| {
                                 self.mobile_controls(ui);
                                 ui.add_space(12.0);
 
@@ -63,8 +63,8 @@ impl eframe::App for TunerApp {
                                     "Source code",
                                     "https://github.com/LeMuffinMan/tuners",
                                 );
-                            });
-                    });
+                            // });
+                    // });
                 });
             }
         }
