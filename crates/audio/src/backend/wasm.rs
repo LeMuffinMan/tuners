@@ -116,19 +116,17 @@ impl WasmAudioBackend {
                 let samples = array.to_vec();
                 let n = samples.len().min(producer.slots());
 
-                if n > 0 {
-                    if let Ok(chunk) = producer.write_chunk_uninit(n) {
-                        let written = chunk.fill_from_iter(samples.iter().take(n).copied());
+                if n > 0 && let Ok(chunk) = producer.write_chunk_uninit(n) {
+                    let written = chunk.fill_from_iter(samples.iter().take(n).copied());
 
-                        if written < samples.len() {
-                            web_sys::console::warn_1(
-                                &format!(
-                                    "Buffer full, dropped {} samples",
-                                    samples.len() - written
-                                )
-                                .into(),
-                            );
-                        }
+                    if written < samples.len() {
+                        web_sys::console::warn_1(
+                            &format!(
+                                "Buffer full, dropped {} samples",
+                                samples.len() - written
+                            )
+                            .into(),
+                        );
                     }
                 }
             }
