@@ -1,10 +1,10 @@
-use audio::audio_bridge::{AudioBridge, SAMPLE_RATE};
+use audio::audio_bridge::AudioBridge;
 use audio::backend::AudioBackend;
 #[cfg(not(target_arch = "wasm32"))]
 use audio::backend::native;
 #[cfg(target_arch = "wasm32")]
 use audio::backend::wasm;
-use cli::Visualizer;
+use dsp::Visualizer;
 use dsp::DigitalSignalProcessor;
 use egui::FontId;
 use egui::TextStyle;
@@ -80,7 +80,7 @@ impl TunerApp {
 
     pub fn update_dsp(&mut self) {
         if let Some(dsp) = &mut self.dsp {
-            dsp.update();
+            dsp.update(self.visualizer);
             let rms = dsp.get_rms();
             self.rms_history.push(rms);
         } else {
@@ -97,19 +97,28 @@ impl TunerApp {
         }
 
         //we set our ringbuff to contain 2 seconds of audio, sampled at SAMPLE_RATE
-        let (bridge, producer) = AudioBridge::new(SAMPLE_RATE as usize * 2);
+        let (bridge, producer) = AudioBridge::new();
         self.dsp = Some(DigitalSignalProcessor::new(bridge.consumer));
-
         match native::NativeAudioBackend::new(producer) {
-            Ok(mut backend) => match backend.start() {
-                Ok(_) => {
-                    self.backend = Some(backend);
-                    self.audio_start = true;
+            Ok(mut backend) => {
+                let sample_rate = backend.sample_rate();
+                println!("Backend sample rate: {} Hz", sample_rate);
+                
+                if let Some(ref mut dsp) = self.dsp {
+                    dsp.sample_rate = sample_rate;
                 }
-                Err(e) => {
-                    eprintln!("Failed to start audio: {}", e);
+                
+                match backend.start() {
+                    Ok(_) => {
+                        self.backend = Some(backend);
+                        self.audio_start = true;
+                        println!("Audio started successfully");
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to start audio: {}", e);
+                    }
                 }
-            },
+            }
             Err(e) => {
                 eprintln!("Failed to create audio backend: {}", e);
             }
@@ -126,10 +135,20 @@ impl TunerApp {
         web_sys::console::log_1(&"Starting audio...".into());
         self.audio_initializing = true;
 
-        let (bridge, producer) = AudioBridge::new(SAMPLE_RATE as usize * 2);
-        web_sys::console::log_1(
-            &format!("Bridge created, buffer size: {}", SAMPLE_RATE * 2).into(),
-        );
+        let sample_rate = match web_sys::AudioContext::new() {
+            Ok(ctx) => {
+                let sr = ctx.sample_rate();
+                web_sys::console::log_1(&format!("Detected sample rate: {} Hz", sr).into());
+                sr
+            }
+            Err(_) => {
+                web_sys::console::warn_1(&"Failed to detect sample rate, using default 48000 Hz".into());
+                48000.0 
+            }
+        };
+
+        let (bridge, producer) = AudioBridge::new();
+        web_sys::console::log_1(&format!("DSP created with sample rate: {} Hz", sample_rate).into());
 
         self.dsp = Some(DigitalSignalProcessor::new(bridge.consumer));
         web_sys::console::log_1(&"DSP created".into());
@@ -138,8 +157,11 @@ impl TunerApp {
             web_sys::console::log_1(&"Async task started".into());
             match wasm::WasmAudioBackend::new(producer).await {
                 Ok(mut backend) => {
-                    web_sys::console::log_1(&"Backend created successfully".into());
-
+                    web_sys::console::log_1(&format!(
+                        "Backend created with sample rate: {} Hz",
+                        backend.sample_rate
+                    ).into());
+                    
                     match backend.start() {
                         Ok(_) => {
                             web_sys::console::log_1(&"Backend started successfully".into());

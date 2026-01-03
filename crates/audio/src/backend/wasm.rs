@@ -11,6 +11,7 @@ pub struct WasmAudioBackend {
     audio_context: Option<AudioContext>,
     worklet_node: Option<AudioWorkletNode>,
     is_running: bool,
+    pub sample_rate: f32,
 }
 
 // https://developer.mozilla.org/fr/docs/Web/API/AudioWorklet
@@ -20,6 +21,10 @@ impl WasmAudioBackend {
         //end point for web audio : can fail if the browser block audio permissions
         let audio_context =
             AudioContext::new().map_err(|e| format!("Failed to create AudioContext: {:?}", e))?;
+       
+        let sample_rate = audio_context.sample_rate();
+        web_sys::console::log_1(&format!("AudioContext sample rate: {} Hz", sample_rate).into());
+
         //load our async custom audio worklet defined in my-processor.js
         let worklet = audio_context
             .audio_worklet()
@@ -65,6 +70,7 @@ impl WasmAudioBackend {
             audio_context: Some(audio_context),
             worklet_node: Some(worklet_node),
             is_running: false,
+            sample_rate,
         })
     }
 
@@ -160,6 +166,10 @@ impl AudioBackend for WasmAudioBackend {
         if let Some(ctx) = &self.audio_context {
             let _ = ctx.suspend();
         }
+    }
+
+    fn sample_rate(&self) -> f32 {
+        self.sample_rate
     }
 }
 

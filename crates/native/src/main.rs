@@ -1,8 +1,8 @@
 use audio::NativeAudioBackend;
-use audio::audio_bridge::{AudioBridge, SAMPLE_RATE};
+use audio::audio_bridge::AudioBridge;
 use audio::backend::AudioBackend;
 use clap::{Parser, ValueEnum};
-use cli::Visualizer;
+use dsp::Visualizer;
 use dsp::DigitalSignalProcessor;
 use gui::{DeviceType, TunerApp};
 use std::time::Duration;
@@ -40,7 +40,7 @@ fn main() {
             );
         }
         Ui::Cli => {
-            let (bridge, producer) = AudioBridge::new(SAMPLE_RATE as usize * 2);
+            let (bridge, producer) = AudioBridge::new();
             let mut dsp = DigitalSignalProcessor::new(bridge.consumer);
             let mut backend = match NativeAudioBackend::new(producer) {
                 Ok(backend) => backend,
@@ -50,13 +50,15 @@ fn main() {
                 }
             };
 
+            dsp.sample_rate = backend.sample_rate();
+
             if let Err(e) = backend.start() {
                 eprintln!("Failed to start backend: {}", e);
             }
 
             loop {
                 std::thread::sleep(Duration::from_millis(8));
-                dsp.update();
+                dsp.update(args.visualizer);
                 match args.visualizer {
                     Visualizer::RMS => {
                         let bars = (dsp.get_rms() * 100.0) as usize;
