@@ -26,7 +26,6 @@ pub struct TunerApp {
     pub audio_initializing: bool, //to fix for promise / future return
 }
 
-
 ///at each frame, we update the dsp, and display panels.
 impl eframe::App for TunerApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
@@ -39,8 +38,7 @@ impl eframe::App for TunerApp {
                 self.source_code_panel(ctx);
                 self.control_panel(ctx);
                 self.central_panel(ctx);
-
-            },
+            }
             DeviceType::Mobile => {
                 egui::CentralPanel::default().show(ctx, |ui| {
                     let available = ui.available_size();
@@ -64,7 +62,6 @@ impl eframe::App for TunerApp {
 }
 
 impl TunerApp {
-
     pub fn new(ui_type: DeviceType) -> Self {
         Self {
             dsp: None,
@@ -78,7 +75,6 @@ impl TunerApp {
             audio_initializing: false,
         }
     }
-
 
     pub fn update_dsp(&mut self) {
         if let Some(dsp) = &mut self.dsp {

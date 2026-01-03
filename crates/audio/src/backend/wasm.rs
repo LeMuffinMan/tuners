@@ -110,35 +110,39 @@ impl WasmAudioBackend {
         mut producer: Producer<f32>,
     ) -> Result<(), String> {
         // Plus besoin d'allouer un Vec permanent ici
-        
-    let closure = Closure::wrap(Box::new(move |event: web_sys::MessageEvent| {
-        if let Ok(array) = event.data().dyn_into::<js_sys::Float32Array>() {
-            let samples = array.to_vec();
-            let n = samples.len().min(producer.slots());
 
-            if n > 0 {
-                if let Ok(chunk) = producer.write_chunk_uninit(n) {
-                    let written = chunk.fill_from_iter(samples.iter().take(n).copied());
-                    
-                    if written < samples.len() {
-                        web_sys::console::warn_1(
-                            &format!("Buffer full, dropped {} samples", samples.len() - written).into()
-                        );
+        let closure = Closure::wrap(Box::new(move |event: web_sys::MessageEvent| {
+            if let Ok(array) = event.data().dyn_into::<js_sys::Float32Array>() {
+                let samples = array.to_vec();
+                let n = samples.len().min(producer.slots());
+
+                if n > 0 {
+                    if let Ok(chunk) = producer.write_chunk_uninit(n) {
+                        let written = chunk.fill_from_iter(samples.iter().take(n).copied());
+
+                        if written < samples.len() {
+                            web_sys::console::warn_1(
+                                &format!(
+                                    "Buffer full, dropped {} samples",
+                                    samples.len() - written
+                                )
+                                .into(),
+                            );
+                        }
                     }
                 }
             }
-        }
-    }) as Box<dyn FnMut(_)>);
-            
-            worklet_node
-                .port()
-                .map_err(|_| "Failed to get port")?
-                .set_onmessage(Some(closure.as_ref().unchecked_ref()));
-            
-            closure.forget();
-            Ok(())
+        }) as Box<dyn FnMut(_)>);
+
+        worklet_node
+            .port()
+            .map_err(|_| "Failed to get port")?
+            .set_onmessage(Some(closure.as_ref().unchecked_ref()));
+
+        closure.forget();
+        Ok(())
     }
- }
+}
 
 impl AudioBackend for WasmAudioBackend {
     //do i want to switch start in async, to handle here promise and node ?

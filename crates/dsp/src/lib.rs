@@ -46,7 +46,7 @@ impl DigitalSignalProcessor {
             return;
         };
 
-        //For now we only calculare RMS, but data to display by ui will compute here 
+        //For now we only calculare RMS, but data to display by ui will compute here
         let sum: f32 = self.sample_buffer.iter().map(|&s| s * s).sum();
         self.rms = (sum / self.sample_buffer.len() as f32).sqrt();
 
