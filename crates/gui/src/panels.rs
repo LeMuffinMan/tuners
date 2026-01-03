@@ -110,8 +110,12 @@ impl TunerApp {
             egui::vec2(ui.available_width(), height),
             egui::Sense::hover(),
         );
+        if self.rms_history.is_empty() {
+            ui.label("RMS empty");
+        } else {
+            self.render_rms_in_rect(ui, rect);
 
-        self.render_rms_in_rect(ui, rect);
+        }
     }
 
     pub fn mobile_controls(&mut self, ui: &mut egui::Ui) {
