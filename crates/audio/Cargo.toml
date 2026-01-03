@@ -19,8 +19,10 @@ web-sys = { version = "0.3", features = [
   "MediaStreamAudioSourceNode",
   "MessageEvent",
   "MessagePort",
+  "Navigator",           
+  "Window",              
+  "console",
 ] }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4.56"
 js-sys = "0.3.83"
-
