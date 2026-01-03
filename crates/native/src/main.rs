@@ -2,8 +2,8 @@ use audio::NativeAudioBackend;
 use audio::audio_bridge::AudioBridge;
 use audio::backend::AudioBackend;
 use clap::{Parser, ValueEnum};
-use dsp::Visualizer;
 use dsp::DigitalSignalProcessor;
+use dsp::Visualizer;
 use gui::{DeviceType, TunerApp};
 use std::time::Duration;
 

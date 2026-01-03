@@ -21,7 +21,7 @@ impl WasmAudioBackend {
         //end point for web audio : can fail if the browser block audio permissions
         let audio_context =
             AudioContext::new().map_err(|e| format!("Failed to create AudioContext: {:?}", e))?;
-       
+
         let sample_rate = audio_context.sample_rate();
         web_sys::console::log_1(&format!("AudioContext sample rate: {} Hz", sample_rate).into());
 

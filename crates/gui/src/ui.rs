@@ -4,8 +4,8 @@ use audio::backend::AudioBackend;
 use audio::backend::native;
 #[cfg(target_arch = "wasm32")]
 use audio::backend::wasm;
-use dsp::Visualizer;
 use dsp::DigitalSignalProcessor;
+use dsp::Visualizer;
 use egui::FontId;
 use egui::TextStyle;
 #[cfg(target_arch = "wasm32")]
@@ -103,11 +103,11 @@ impl TunerApp {
             Ok(mut backend) => {
                 let sample_rate = backend.sample_rate();
                 println!("Backend sample rate: {} Hz", sample_rate);
-                
+
                 if let Some(ref mut dsp) = self.dsp {
                     dsp.sample_rate = sample_rate;
                 }
-                
+
                 match backend.start() {
                     Ok(_) => {
                         self.backend = Some(backend);
@@ -142,13 +142,17 @@ impl TunerApp {
                 sr
             }
             Err(_) => {
-                web_sys::console::warn_1(&"Failed to detect sample rate, using default 48000 Hz".into());
-                48000.0 
+                web_sys::console::warn_1(
+                    &"Failed to detect sample rate, using default 48000 Hz".into(),
+                );
+                48000.0
             }
         };
 
         let (bridge, producer) = AudioBridge::new();
-        web_sys::console::log_1(&format!("DSP created with sample rate: {} Hz", sample_rate).into());
+        web_sys::console::log_1(
+            &format!("DSP created with sample rate: {} Hz", sample_rate).into(),
+        );
 
         self.dsp = Some(DigitalSignalProcessor::new(bridge.consumer));
         web_sys::console::log_1(&"DSP created".into());
@@ -157,11 +161,14 @@ impl TunerApp {
             web_sys::console::log_1(&"Async task started".into());
             match wasm::WasmAudioBackend::new(producer).await {
                 Ok(mut backend) => {
-                    web_sys::console::log_1(&format!(
-                        "Backend created with sample rate: {} Hz",
-                        backend.sample_rate
-                    ).into());
-                    
+                    web_sys::console::log_1(
+                        &format!(
+                            "Backend created with sample rate: {} Hz",
+                            backend.sample_rate
+                        )
+                        .into(),
+                    );
+
                     match backend.start() {
                         Ok(_) => {
                             web_sys::console::log_1(&"Backend started successfully".into());

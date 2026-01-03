@@ -55,19 +55,21 @@ impl DigitalSignalProcessor {
         //For now we only calculare RMS, but data to display by ui will compute here
         let sum: f32 = self.sample_buffer.iter().map(|&s| s * s).sum();
         self.rms = (sum / self.sample_buffer.len() as f32).sqrt();
-        
-        if feature == Visualizer::Freq { 
+
+        if feature == Visualizer::Freq {
             if let Some(freq) = self.autocorrelation(&self.sample_buffer, self.sample_rate) {
                 self.frequency = Some(freq);
                 self.note = Some(Self::freq_to_note(freq));
                 #[cfg(target_arch = "wasm32")]
-                web_sys::console::log_1(&format!("Detected: {} Hz ({})", freq, Self::freq_to_note(freq)).into());
+                web_sys::console::log_1(
+                    &format!("Detected: {} Hz ({})", freq, Self::freq_to_note(freq)).into(),
+                );
             } else {
                 self.frequency = None;
                 self.note = None;
             }
         }
-        
+
         #[cfg(target_arch = "wasm32")]
         web_sys::console::log_1(&format!("RMS: {}", self.rms).into());
     }
@@ -79,35 +81,37 @@ impl DigitalSignalProcessor {
         if self.sample_buffer.is_empty() {
             return Vec::new();
         }
-        
+
         let buffer_len = self.sample_buffer.len();
-        
+
         if count >= buffer_len {
             return self.sample_buffer.clone();
         }
-        
+
         let step = buffer_len as f32 / count as f32;
         let mut samples = Vec::with_capacity(count);
-        
+
         for i in 0..count {
             let index = (i as f32 * step) as usize;
             if index < buffer_len {
                 samples.push(self.sample_buffer[index]);
             }
         }
-        
+
         samples
     }
     pub fn get_frequency(&self) -> Option<f32> {
         self.frequency
     }
-    
+
     pub fn get_note(&self) -> Option<String> {
         self.note.clone()
     }
-    
+
     fn freq_to_note(freq: f32) -> String {
-        let notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        let notes = [
+            "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
+        ];
 
         let a4 = 440.0;
         let note_number = 69.0 + 12.0 * (freq / a4).log2();
@@ -118,7 +122,7 @@ impl DigitalSignalProcessor {
 
         format!("{}{}", notes[note_index as usize], octave)
     }
-    
+
     fn autocorrelation(&self, buffer: &[f32], sample_rate: f32) -> Option<f32> {
         let size = buffer.len();
         if size < 1024 {
@@ -152,9 +156,9 @@ impl DigitalSignalProcessor {
 
         let mut max_pos = d;
         let mut max_val = corr[d];
-        for i in d..size {
-            if corr[i] > max_val {
-                max_val = corr[i];
+        for (i, c) in corr.iter_mut().enumerate().take(size).skip(d) {
+            if *c > max_val {
+                max_val = *c;
                 max_pos = i;
             }
         }
@@ -163,6 +167,6 @@ impl DigitalSignalProcessor {
             return None;
         }
 
-        Some(sample_rate / max_pos as f32)   
+        Some(sample_rate / max_pos as f32)
     }
 }
