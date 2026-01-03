@@ -1,7 +1,6 @@
 use crate::TunerApp;
 use cli::Visualizer;
 
-
 impl TunerApp {
     pub fn central_panel(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -37,7 +36,7 @@ impl TunerApp {
                 self.features_button(ui);
             });
     }
-       
+
     pub fn source_code_panel(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::bottom("source code").show(ctx, |ui| {
             ui.with_layout(
@@ -96,10 +95,7 @@ impl TunerApp {
             }
 
             if ui
-                .selectable_label(
-                    matches!(self.visualizer, Visualizer::WaveShape),
-                    "Waveform",
-                )
+                .selectable_label(matches!(self.visualizer, Visualizer::WaveShape), "Waveform")
                 .clicked()
             {
                 self.visualizer = Visualizer::WaveShape;

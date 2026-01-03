@@ -26,6 +26,7 @@ This required strict respect of real-time constraints, where architectural decis
 As i realized to late on my last rust project how architecture and design are important, i wanted to build a scalable and clean architecture from start this time.
 The project is organized as autonomous crates with clear responsibilities:
 
+```
 ├── crates
 │   ├── audio
 │   │   ├── Cargo.toml
@@ -62,7 +63,7 @@ The project is organized as autonomous crates with clear responsibilities:
 │       ├── my-processor.js
 │       └── src
 │           └── lib.rs
-
+```
   * Audio: audio acquisition and backend abstraction (native / WASM)
   * Cli : enumarates features, and using clap to parse arguments 
   * DSP: signal processing on audio samples (RMS, waveform, frequency)
