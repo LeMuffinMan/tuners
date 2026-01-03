@@ -41,15 +41,25 @@ impl eframe::App for TunerApp {
             }
             DeviceType::Mobile => {
                 egui::CentralPanel::default().show(ctx, |ui| {
-                    let available = ui.available_size();
+                    let max_width = ui.available_width().min(420.0);
+
                     ui.vertical_centered(|ui| {
-                        ui.set_max_width(available.x.min(420.0));
-                        egui::Frame::new()
-                            .inner_margin(egui::Margin::same(12))
-                            .show(ui, |_ui| {
-                                self.source_code_panel(ctx);
-                                self.control_panel(ctx);
-                                self.central_panel(ctx);
+                        ui.set_max_width(max_width);
+
+                        egui::ScrollArea::vertical()
+                            .auto_shrink([false; 2])
+                            .show(ui, |ui| {
+                                self.mobile_controls(ui);
+                                ui.add_space(12.0);
+
+                                self.mobile_visualizer(ui);
+                                ui.add_space(12.0);
+
+                                ui.separator();
+                                ui.hyperlink_to(
+                                    "Source code",
+                                    "https://github.com/LeMuffinMan/tuners",
+                                );
                             });
                     });
                 });

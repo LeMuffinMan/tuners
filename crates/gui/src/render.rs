@@ -30,4 +30,31 @@ impl TunerApp {
             );
         }
     }
+
+    pub fn render_rms_in_rect(&mut self, ui: &egui::Ui, rect: egui::Rect) {
+        let painter = ui.painter();
+        let width = rect.width();
+        let height = rect.height();
+
+        painter.rect_filled(rect, 0.0, Color32::from_gray(30));
+
+        if self.rms_history.len() > width as usize {
+            self.rms_history.remove(0);
+        }
+
+        let n = self.rms_history.len();
+        for (i, &v) in self.rms_history.iter().enumerate() {
+            let bar_height = (v * height).clamp(0.0, height);
+            let x = rect.right() - n as f32 + i as f32;
+
+            painter.rect_filled(
+                Rect::from_min_max(
+                    Pos2::new(x, rect.bottom() - bar_height),
+                    Pos2::new(x + 1.0, rect.bottom()),
+                ),
+                0.0,
+                Color32::from_rgb(0, 200, 0),
+            );
+        }
+    }
 }
