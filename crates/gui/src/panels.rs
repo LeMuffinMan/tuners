@@ -114,7 +114,6 @@ impl TunerApp {
             ui.label("RMS empty");
         } else {
             self.render_rms_in_rect(ui, rect);
-
         }
     }
 
