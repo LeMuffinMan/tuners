@@ -1,7 +1,8 @@
 [workspace]
 resolver = "2"
-members = [ "crates/audio", "crates/cli",
+members = [ "crates/audio",
     "crates/dsp",
     "crates/native",
+    "crates/gui",
     "crates/wasm"
 ]

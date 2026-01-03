@@ -6,7 +6,6 @@ edition = "2024"
 [dependencies]
 dsp = { path = "../dsp" }
 audio = { path = "../audio" }
-cli = {  path = "../cli" }
 
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4.56"

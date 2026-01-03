@@ -11,4 +11,5 @@ pub mod native;
 pub trait AudioBackend {
     fn start(&mut self) -> Result<(), String>;
     fn stop(&mut self);
+    fn sample_rate(&self) -> f32;
 }

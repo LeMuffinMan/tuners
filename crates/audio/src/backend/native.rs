@@ -5,6 +5,7 @@ use rtrb::Producer;
 
 pub struct NativeAudioBackend {
     stream: Option<Stream>,
+    pub sample_rate: f32,
 }
 
 impl NativeAudioBackend {
@@ -15,6 +16,8 @@ impl NativeAudioBackend {
         let config = device
             .default_input_config()
             .map_err(|e| format!("Failed to get config: {}", e))?;
+
+        let sample_rate = config.sample_rate() as f32;
 
         //move on a closure force the closure to capture variables by value : here it captures
         //producer taking its ownership. Moving producer make it usable only inside this closure,
@@ -44,6 +47,7 @@ impl NativeAudioBackend {
 
         Ok(Self {
             stream: Some(stream),
+            sample_rate,
         })
     }
 }
@@ -62,5 +66,8 @@ impl AudioBackend for NativeAudioBackend {
         if let Some(stream) = &self.stream {
             let _ = stream.pause();
         }
+    }
+    fn sample_rate(&self) -> f32 {
+        self.sample_rate
     }
 }

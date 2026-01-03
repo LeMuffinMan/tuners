@@ -1,5 +1,7 @@
-use audio::audio_bridge::{BUFFER_SIZE, SAMPLE_RATE};
+use audio::audio_bridge::BUFFER_SIZE;
 use rtrb::Consumer;
+pub mod visualizer;
+pub use visualizer::Visualizer;
 
 ///We use this struct to compute on samples and store results ready to be displayed by ui
 pub struct DigitalSignalProcessor {
@@ -8,7 +10,7 @@ pub struct DigitalSignalProcessor {
     sample_buffer: Vec<f32>,
     pub frequency: Option<f32>,
     pub note: Option<String>,
-    sample_rate: f32,
+    pub sample_rate: f32,
 }
 
 //The Audio Callback async rust function or the AudioWorklet will write samples in the ring buf
@@ -21,13 +23,13 @@ impl DigitalSignalProcessor {
             rms: 0.0,
             frequency: None,
             note: None,
-            sample_rate: SAMPLE_RATE as f32,
+            sample_rate: 48000.0,
         }
     }
 
     //we call this function in the eframe loop
     //at each frame, we update our sample_buffer so we work on the latests samples
-    pub fn update(&mut self) {
+    pub fn update(&mut self, feature: Visualizer) {
         self.sample_buffer.clear();
         let mut count = 0;
         while let Ok(sample) = self.consumer.pop() {
@@ -54,14 +56,16 @@ impl DigitalSignalProcessor {
         let sum: f32 = self.sample_buffer.iter().map(|&s| s * s).sum();
         self.rms = (sum / self.sample_buffer.len() as f32).sqrt();
         
-        if let Some(freq) = self.autocorrelation(&self.sample_buffer, self.sample_rate) {
-            self.frequency = Some(freq);
-            self.note = Some(Self::freq_to_note(freq));
-            #[cfg(target_arch = "wasm32")]
-            web_sys::console::log_1(&format!("Detected: {} Hz ({})", freq, Self::freq_to_note(freq)).into());
-        } else {
-            self.frequency = None;
-            self.note = None;
+        if feature == Visualizer::Freq { 
+            if let Some(freq) = self.autocorrelation(&self.sample_buffer, self.sample_rate) {
+                self.frequency = Some(freq);
+                self.note = Some(Self::freq_to_note(freq));
+                #[cfg(target_arch = "wasm32")]
+                web_sys::console::log_1(&format!("Detected: {} Hz ({})", freq, Self::freq_to_note(freq)).into());
+            } else {
+                self.frequency = None;
+                self.note = None;
+            }
         }
         
         #[cfg(target_arch = "wasm32")]
@@ -104,129 +108,61 @@ impl DigitalSignalProcessor {
     
     fn freq_to_note(freq: f32) -> String {
         let notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
         let a4 = 440.0;
-        
-        let half_steps = (12.0 * (freq / a4).log2()).round() as i32;
-        let note_index = (half_steps + 9).rem_euclid(12);
-        let octave = 4 + ((half_steps + 9) / 12);
-        
+        let note_number = 69.0 + 12.0 * (freq / a4).log2();
+        let note_number = note_number.round() as i32;
+
+        let note_index = note_number.rem_euclid(12);
+        let octave = note_number / 12 - 1;
+
         format!("{}{}", notes[note_index as usize], octave)
     }
     
     fn autocorrelation(&self, buffer: &[f32], sample_rate: f32) -> Option<f32> {
-        if buffer.len() < 4096 {
+        let size = buffer.len();
+        if size < 1024 {
             return None;
         }
-        
-        let rms = self.rms;
-        // if rms < 0.005 {
-        //     return None;
-        // }
-        
-        //mode guitare / basse / ...
-        let min_freq = 35.0;   
-        let max_freq = 400.0;  
-        
-        let min_lag = (sample_rate / max_freq) as usize;
-        let max_lag = (sample_rate / min_freq).min(buffer.len() as f32 / 2.0) as usize;
 
-        #[cfg(target_arch = "wasm32")]
-        web_sys::console::log_1(&format!("Buffer len: {}, min_lag: {}, max_lag: {}, RMS: {}", 
-            buffer.len(), min_lag, max_lag, rms).into());
-        
-        let mean: f32 = buffer.iter().sum::<f32>() / buffer.len() as f32;
-        let normalized: Vec<f32> = buffer.iter().map(|&s| s - mean).collect();
-        
-        let mut best_lag = 0;
-        let mut best_corr = -1.0;
-        let mut second_best_corr = -1.0;
-        
-        for lag in min_lag..max_lag {
-            let mut corr = 0.0;
-            let mut norm1 = 0.0;
-            let mut norm2 = 0.0;
-            
-            for i in 0..(normalized.len() - lag) {
-                corr += normalized[i] * normalized[i + lag];
-                norm1 += normalized[i] * normalized[i];
-                norm2 += normalized[i + lag] * normalized[i + lag];
-            }
-            
-            if norm1 > 0.0 && norm2 > 0.0 {
-                corr /= (norm1 * norm2).sqrt();
-            }
-            
-            if corr > best_corr {
-                second_best_corr = best_corr;
-                best_corr = corr;
-                best_lag = lag;
-            } else if corr > second_best_corr {
-                second_best_corr = corr;
-            }
+        let rms = (buffer.iter().map(|x| x * x).sum::<f32>() / size as f32).sqrt();
+        if rms < 0.01 {
+            return None;
         }
-        
-        let clarity = best_corr - second_best_corr;
-        
-        #[cfg(target_arch = "wasm32")]
-        web_sys::console::log_1(&format!("Best corr: {}, best_lag: {}", best_corr, best_lag).into());
-   
 
-        if best_lag > 0 && best_corr > 0.3 && clarity > 0.1 {
-            let refined_lag = if best_lag > min_lag && best_lag < max_lag - 1 {
-                self.parabolic_interpolation(&normalized, best_lag)
-            } else {
-                best_lag as f32
-            };
-            let freq = sample_rate / refined_lag;
-            
-            #[cfg(target_arch = "wasm32")]
-            web_sys::console::log_1(&format!("Detected frequency: {} Hz", freq).into());
-            
-            Some(freq)
-        } else {
-            None
+        let mean = buffer.iter().sum::<f32>() / size as f32;
+        let mut signal = Vec::with_capacity(size);
+        for &x in buffer {
+            signal.push(x - mean);
         }
+
+        let mut corr = vec![0.0; size];
+        for lag in 0..size {
+            let mut sum = 0.0;
+            for i in 0..(size - lag) {
+                sum += signal[i] * signal[i + lag];
+            }
+            corr[lag] = sum;
+        }
+
+        let mut d = 0;
+        while d + 1 < size && corr[d] > corr[d + 1] {
+            d += 1;
+        }
+
+        let mut max_pos = d;
+        let mut max_val = corr[d];
+        for i in d..size {
+            if corr[i] > max_val {
+                max_val = corr[i];
+                max_pos = i;
+            }
+        }
+
+        if max_pos == 0 {
+            return None;
+        }
+
+        Some(sample_rate / max_pos as f32)   
     }
-    
-    fn parabolic_interpolation(&self, buffer: &[f32], lag: usize) -> f32 {
-        if lag == 0 || lag >= buffer.len() - 1 {
-            return lag as f32;
-        }
-        
-        let alpha = self.compute_correlation(buffer, lag - 1);
-        let beta = self.compute_correlation(buffer, lag);
-        let gamma = self.compute_correlation(buffer, lag + 1);
-        
-        let denom = alpha - 2.0 * beta + gamma;
-        if denom.abs() < 0.0001 {
-            return lag as f32;
-        }
-        
-        let offset = 0.5 * (alpha - gamma) / denom;
-        
-        let offset = offset.clamp(-1.0, 1.0);
-        
-        lag as f32 + offset
-    }
-    
-    fn compute_correlation(&self, buffer: &[f32], lag: usize) -> f32 {
-        if lag >= buffer.len() {
-            return 0.0;
-        }
-        
-        let mut corr = 0.0;
-        let mut norm1 = 0.0;
-        let mut norm2 = 0.0;
-        
-        for i in 0..(buffer.len() - lag) {
-            corr += buffer[i] * buffer[i + lag];
-            norm1 += buffer[i] * buffer[i];
-            norm2 += buffer[i + lag] * buffer[i + lag];
-        }
-        
-        if norm1 > 0.0 && norm2 > 0.0 {
-            corr / (norm1 * norm2).sqrt()
-        } else {
-            0.0
-        }
-    }}
+}

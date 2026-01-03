@@ -1,5 +1,5 @@
 use crate::TunerApp;
-use cli::Visualizer;
+use dsp::Visualizer;
 
 impl TunerApp {
     pub fn central_panel(&mut self, ctx: &egui::Context) {
@@ -111,13 +111,13 @@ impl TunerApp {
             egui::Sense::hover(),
         );
         match self.visualizer {
-            cli::Visualizer::RMS => {
+            dsp::Visualizer::RMS => {
                 self.render_rms_in_rect(ui, rect);
             }
-            cli::Visualizer::WaveForm => {
+            dsp::Visualizer::WaveForm => {
                 self.render_waveform_in_rect(ui, rect);
             }
-            cli::Visualizer::Freq => {
+            dsp::Visualizer::Freq => {
                 self.render_tuner_in_rect(ui, rect);
             }
         }
