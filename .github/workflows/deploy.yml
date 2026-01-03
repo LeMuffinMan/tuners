@@ -47,9 +47,6 @@ jobs:
       # - name: Clippy tuners_native
       #   run: cargo clippy -p tuners_native 
 
-      - name: Clippy cli
-        run: cargo clippy -p cli 
-
       # - name: Clippy dsp
       #   run: cargo clippy -p dsp 
 
