@@ -6,6 +6,8 @@ use audio::backend::native;
 use audio::backend::wasm;
 use cli::Visualizer;
 use dsp::DigitalSignalProcessor;
+use egui::FontId;
+use egui::TextStyle;
 #[cfg(target_arch = "wasm32")]
 use web_sys;
 
@@ -30,16 +32,17 @@ pub struct TunerApp {
 impl eframe::App for TunerApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         ctx.set_visuals(egui::Visuals::dark());
+        if self.audio_start {
+            self.update_dsp();
+        }
         match self.ui_type {
             DeviceType::Desktop => {
-                if self.audio_start {
-                    self.update_dsp();
-                }
                 self.source_code_panel(ctx);
                 self.control_panel(ctx);
                 self.central_panel(ctx);
             }
             DeviceType::Mobile => {
+                self.apply_styles(ctx);
                 egui::CentralPanel::default().show(ctx, |ui| {
                     let max_width = ui.available_width().min(420.0);
 
@@ -192,5 +195,32 @@ impl TunerApp {
         self.dsp = None;
         self.audio_start = false;
         self.rms_history.clear();
+    }
+    pub fn apply_styles(&mut self, ctx: &egui::Context) {
+        let mut style = (*ctx.style()).clone();
+        style.text_styles = [
+            (
+                TextStyle::Heading,
+                FontId::new(70.0, egui::FontFamily::Proportional),
+            ),
+            (
+                TextStyle::Body,
+                FontId::new(30.0, egui::FontFamily::Proportional),
+            ),
+            (
+                TextStyle::Monospace,
+                FontId::new(28.0, egui::FontFamily::Monospace),
+            ),
+            (
+                TextStyle::Button,
+                FontId::new(40.0, egui::FontFamily::Proportional),
+            ),
+            (
+                TextStyle::Small,
+                FontId::new(18.0, egui::FontFamily::Proportional),
+            ),
+        ]
+        .into();
+        ctx.set_style(style);
     }
 }
