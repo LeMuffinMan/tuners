@@ -31,13 +31,32 @@ pub struct TunerApp {
 impl eframe::App for TunerApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         ctx.set_visuals(egui::Visuals::dark());
-        if self.audio_start {
-            self.update_dsp();
-        }
-        self.source_code_panel(ctx);
-        self.control_panel(ctx);
-        self.central_panel(ctx);
+        match self.ui_type {
+            DeviceType::Desktop => {
+                if self.audio_start {
+                    self.update_dsp();
+                }
+                self.source_code_panel(ctx);
+                self.control_panel(ctx);
+                self.central_panel(ctx);
 
+            },
+            DeviceType::Mobile => {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    let available = ui.available_size();
+                    ui.vertical_centered(|ui| {
+                        ui.set_max_width(available.x.min(420.0));
+                        egui::Frame::new()
+                            .inner_margin(egui::Margin::same(12))
+                            .show(ui, |_ui| {
+                                self.source_code_panel(ctx);
+                                self.control_panel(ctx);
+                                self.central_panel(ctx);
+                            });
+                    });
+                });
+            }
+        }
         if self.audio_start {
             ctx.request_repaint();
         }

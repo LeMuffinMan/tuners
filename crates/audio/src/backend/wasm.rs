@@ -109,42 +109,36 @@ impl WasmAudioBackend {
         worklet_node: &AudioWorkletNode,
         mut producer: Producer<f32>,
     ) -> Result<(), String> {
-        //We define a closure, wrap to tranform rust function into JS callback
-        //Since Rust and JS has differents memory management, we must wrap our closure so JS can
-        //call it
-        //move allows our closure to capture producer by value, now, the closure has the ownership
-        let closure = Closure::wrap(Box::new(move |event: web_sys::MessageEvent| {
-            //We must translate in the other way : JS sent to Rust Float32Array
-            if let Ok(array) = event.data().dyn_into::<js_sys::Float32Array>() {
-                //so we turn this array into a Vec<f32>, with we can work on in rust
-                //HERE i allocate, i should find another way
-                let samples = array.to_vec();
-                //now, our samples are ready to be pushed in the ringbuf
-                for sample in samples {
-                    if let Err(e) = producer.push(sample) {
-                        web_sys::console::error_1(
-                            &format!("Failed to push sample in ringbuff : {e}").into(),
+        // Plus besoin d'allouer un Vec permanent ici
+        
+    let closure = Closure::wrap(Box::new(move |event: web_sys::MessageEvent| {
+        if let Ok(array) = event.data().dyn_into::<js_sys::Float32Array>() {
+            let samples = array.to_vec();
+            let n = samples.len().min(producer.slots());
+
+            if n > 0 {
+                if let Ok(chunk) = producer.write_chunk_uninit(n) {
+                    let written = chunk.fill_from_iter(samples.iter().take(n).copied());
+                    
+                    if written < samples.len() {
+                        web_sys::console::warn_1(
+                            &format!("Buffer full, dropped {} samples", samples.len() - written).into()
                         );
                     }
                 }
             }
-        }) as Box<dyn FnMut(_)>);
-
-        //we want to execute this closure for each message received from
-        //AudioWorklet
-        //uncheck_ref makes this part unsafe. I didn't found any better solution
-        worklet_node
-            .port()
-            .map_err(|_| "Failed to get port")?
-            .set_onmessage(Some(closure.as_ref().unchecked_ref()));
-
-        //We do not want rust to drop the closure here, as it would do without this forget();
-        //if the closure was dropped, JS would crash
-        closure.forget();
-        //todo : on/off at least for native to free this closure properly
-        Ok(())
+        }
+    }) as Box<dyn FnMut(_)>);
+            
+            worklet_node
+                .port()
+                .map_err(|_| "Failed to get port")?
+                .set_onmessage(Some(closure.as_ref().unchecked_ref()));
+            
+            closure.forget();
+            Ok(())
     }
-}
+ }
 
 impl AudioBackend for WasmAudioBackend {
     //do i want to switch start in async, to handle here promise and node ?
