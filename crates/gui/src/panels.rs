@@ -104,17 +104,16 @@ impl TunerApp {
     }
 
     pub fn mobile_visualizer(&mut self, ui: &mut egui::Ui) {
-        // let height = ui.available_height().min(180.0);
+        let height = ui.available_height().min(300.0);
 
-        // let (rect, _) = ui.allocate_exact_size(
-        //     egui::vec2(ui.available_width(), height),
-        //     egui::Sense::hover(),
-        // );
+        let (rect, _) = ui.allocate_exact_size(
+            egui::vec2(ui.available_width(), height),
+            egui::Sense::hover(),
+        );
         if self.rms_history.is_empty() {
             ui.label("RMS empty");
         } else {
-            // self.render_rms_in_rect(ui, rect);
-            self.render_rms(ui);
+            self.render_rms_in_rect(ui, rect);
         }
     }
 
