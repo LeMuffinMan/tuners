@@ -104,16 +104,17 @@ impl TunerApp {
     }
 
     pub fn mobile_visualizer(&mut self, ui: &mut egui::Ui) {
-        let height = ui.available_height().min(180.0);
+        // let height = ui.available_height().min(180.0);
 
-        let (rect, _) = ui.allocate_exact_size(
-            egui::vec2(ui.available_width(), height),
-            egui::Sense::hover(),
-        );
+        // let (rect, _) = ui.allocate_exact_size(
+        //     egui::vec2(ui.available_width(), height),
+        //     egui::Sense::hover(),
+        // );
         if self.rms_history.is_empty() {
             ui.label("RMS empty");
         } else {
-            self.render_rms_in_rect(ui, rect);
+            // self.render_rms_in_rect(ui, rect);
+            self.render_rms(ui);
         }
     }
 
@@ -122,15 +123,10 @@ impl TunerApp {
             .inner_margin(egui::Margin::same(12))
             .show(ui, |ui| {
                 ui.vertical(|ui| {
-                    ui.heading("Controls");
-                    ui.add_space(8.0);
-
                     self.start_microphone_button(ui);
-
                     ui.add_space(8.0);
                     ui.separator();
                     ui.add_space(8.0);
-
                     self.features_button(ui);
                 });
             });
