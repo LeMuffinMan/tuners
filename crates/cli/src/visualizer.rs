@@ -5,5 +5,5 @@ use clap::ValueEnum;
 pub enum Visualizer {
     Freq,
     RMS,
-    WaveShape,
+    WaveForm,
 }

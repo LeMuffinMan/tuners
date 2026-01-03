@@ -62,7 +62,7 @@ fn main() {
                         let bars = (dsp.get_rms() * 100.0) as usize;
                         println!("{: <50}", "█".repeat(bars));
                     }
-                    Visualizer::WaveShape => {}
+                    Visualizer::WaveForm => {}
                     Visualizer::Freq => {}
                 }
             }
