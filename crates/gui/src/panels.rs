@@ -10,10 +10,10 @@ impl TunerApp {
                         self.render_rms(ui);
                     }
                     Visualizer::Freq => {
-                        ui.vertical_centered(|_ui| {});
+                        self.render_tuner(ui);
                     }
-                    Visualizer::WaveShape => {
-                        ui.vertical_centered(|_ui| {});
+                    Visualizer::WaveForm => {
+                        self.render_waveform(ui);
                     }
                 }
             } else {
@@ -95,10 +95,10 @@ impl TunerApp {
             }
 
             if ui
-                .selectable_label(matches!(self.visualizer, Visualizer::WaveShape), "Waveform")
+                .selectable_label(matches!(self.visualizer, Visualizer::WaveForm), "Waveform")
                 .clicked()
             {
-                self.visualizer = Visualizer::WaveShape;
+                self.visualizer = Visualizer::WaveForm;
             }
         }
     }
@@ -110,10 +110,16 @@ impl TunerApp {
             egui::vec2(ui.available_width(), height),
             egui::Sense::hover(),
         );
-        if self.rms_history.is_empty() {
-            ui.label("RMS empty");
-        } else {
-            self.render_rms_in_rect(ui, rect);
+        match self.visualizer {
+            cli::Visualizer::RMS => {
+                self.render_rms_in_rect(ui, rect);
+            }
+            cli::Visualizer::WaveForm => {
+                self.render_waveform_in_rect(ui, rect);
+            }
+            cli::Visualizer::Freq => {
+                self.render_tuner_in_rect(ui, rect);
+            }
         }
     }
 
