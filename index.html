@@ -7,8 +7,8 @@
 
   
 <script type="module">
-import init, * as bindings from '/tuners/tuners_wasm-344677b9524695b3.js';
-const wasm = await init({ module_or_path: '/tuners/tuners_wasm-344677b9524695b3_bg.wasm' });
+import init, * as bindings from '/tuners/tuners_wasm-c62980076d1cc771.js';
+const wasm = await init({ module_or_path: '/tuners/tuners_wasm-c62980076d1cc771_bg.wasm' });
 
 
 window.wasmBindings = bindings;
@@ -35,7 +35,7 @@ dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
       height: 100vh;
     }
   </style>
-<link rel="modulepreload" href="/tuners/tuners_wasm-344677b9524695b3.js" crossorigin="anonymous" integrity="sha384-KWGZWfxZ0V4IlOEq62ZJ0pEQTUZBYhl+qwaILEzSyixwLtor+R9MVh5ttJt0hm1T"><link rel="preload" href="/tuners/tuners_wasm-344677b9524695b3_bg.wasm" crossorigin="anonymous" integrity="sha384-rq62G6zGai5oS0xMYDm+RelUmFmpdHNK+asAMXtUq+jO39Gb/Yrv63pKj0wc3RxC" as="fetch" type="application/wasm"></head>
+<link rel="modulepreload" href="/tuners/tuners_wasm-c62980076d1cc771.js" crossorigin="anonymous" integrity="sha384-5g2fkQbh6VUSjYoAaDtU6pzJppjGmumKf1STTiubBPD9UIoYbBoS3p7peMhbtBxA"><link rel="preload" href="/tuners/tuners_wasm-c62980076d1cc771_bg.wasm" crossorigin="anonymous" integrity="sha384-f67N21//WuLlXVvX35OqMKA9Vr7WwZqo3r+qg3QNw6faT1310lqbt+e8zJBcerzx" as="fetch" type="application/wasm"></head>
 
 <body>
   <canvas id="tunersappid"></canvas>
