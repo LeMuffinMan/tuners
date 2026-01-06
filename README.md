@@ -1,6 +1,8 @@
 # Tune.rs
 
-This project is a hands-on exploration of real-time audio programming in Rust, with a strong focus on clean architecture, cross-platform design (native + WASM), and separation of concerns.
+This project is a first exploration of real-time audio programming in Rust, with a strong focus on clean architecture, cross-platform design (native + WASM), and separation of concerns.
+
+Try it live on GitHub Pages: https://lemuffinman.github.io/tuners
 
 It is a small audio playground capable of:
  * capturing live audio input
@@ -23,7 +25,11 @@ This required strict respect of real-time constraints, where architectural decis
 
 ## 2. Designing a modular and scalable architecture
 
-As i realized to late on my last rust project how architecture and design are important, i wanted to build a scalable and clean architecture from start this time.
+As i realized to late on my last rust project how architecture and design are important, I wanted to prioritise a scalable and clean architecture from start this time.
+As an architecture challenge I wanted to build an app which could be compiled as native and wasm, implying two different audio interface, using CPAL for native and the WebAPI with AudioWorklet for the wasm target. 
+I used a trait, so both backend could fill the same ringbuffer.
+As frontend, i wanted to run several as well. So i used egui, as graphical ui, with desktop and mobile variants, a CLI, and may be a TUI.
+
 The project is organized as autonomous crates with clear responsibilities:
 
 ```
@@ -37,11 +43,6 @@ The project is organized as autonomous crates with clear responsibilities:
 │   │       │   ├── native.rs
 │   │       │   └── wasm.rs
 │   │       └── lib.rs
-│   ├── cli
-│   │   ├── Cargo.toml
-│   │   └── src
-│   │       ├── lib.rs
-│   │       └── visualizer.rs
 │   ├── dsp
 │   │   ├── Cargo.toml
 │   │   └── src
