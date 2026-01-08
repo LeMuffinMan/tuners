@@ -28,3 +28,9 @@ wasm-bindgen-futures = "0.4.56"
 [lib]
 name = "tuners_wasm"
 crate-type = ["cdylib"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = [
+    "-Oz",                    # Optimise pour taille
+    "--enable-simd",          # Active SIMD
+]

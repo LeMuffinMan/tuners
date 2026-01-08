@@ -6,3 +6,25 @@ members = [ "crates/audio",
     "crates/gui",
     "crates/wasm"
 ]
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+
+[profile.wasm-release]
+inherits = "release"
+opt-level = "z"
+lto = true
+panic = "abort"
+
+[profile.release.package."*"]
+opt-level = 3
+strip = true
+
+[profile.wasm-release.package."*"]
+opt-level = "z"
+strip = true
+
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "target-feature=+simd128"]
