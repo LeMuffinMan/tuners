@@ -25,6 +25,3 @@ strip = true
 [profile.wasm-release.package."*"]
 opt-level = "z"
 strip = true
-
-[target.wasm32-unknown-unknown]
-rustflags = ["-C", "target-feature=+simd128"]
