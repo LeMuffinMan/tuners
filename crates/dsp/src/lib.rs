@@ -130,9 +130,9 @@ impl DigitalSignalProcessor {
         }
 
         let rms = (buffer.iter().map(|x| x * x).sum::<f32>() / size as f32).sqrt();
-        if rms < 0.01 {
-            return None;
-        }
+        // if rms < 0.01 {
+        //     return None;
+        // }
 
         let mean = buffer.iter().sum::<f32>() / size as f32;
         let mut signal = Vec::with_capacity(size);
