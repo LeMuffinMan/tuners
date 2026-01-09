@@ -82,8 +82,8 @@ jobs:
           sudo cp binaryen-${BINARYEN_VERSION}/bin/wasm-opt /usr/local/bin/
           wasm-opt --version
 
-      - name: Install Trunk || true
-        run: cargo install --locked trunk
+      - name: Install Trunk
+        run: cargo install --locked trunk || true
 
       - name: Build WASM (optimized)
         run: |
