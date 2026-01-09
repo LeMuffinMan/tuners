@@ -52,14 +52,14 @@ jobs:
       # - name: Cargo check dsp
       #   run: cargo check -p dsp
 
-        #cfg pour audio et gui ? 
+      #cfg pour audio et gui ?
 
       - name: Run Clippy on WASM
         run: |
           cargo clippy -p tuners_wasm \
             --target wasm32-unknown-unknown \
             --profile wasm-release \
-            -- -D warnings     
+            -- -D warnings
 
       # - name: Run Clippy on workspace
       #   run: |
@@ -68,12 +68,11 @@ jobs:
       #       --all-targets \
       #       -- -D warnings
 
-        #cfg for gui and audio ?
+      #cfg for gui and audio ?
 
       - name: Install wasm-bindgen-cli
         run: |
           cargo install wasm-bindgen-cli --version 0.2.92 || true
-          # || true : ne fail pas si déjà dans le cache
 
       - name: Install wasm-opt (binaryen)
         run: |
@@ -83,7 +82,7 @@ jobs:
           sudo cp binaryen-${BINARYEN_VERSION}/bin/wasm-opt /usr/local/bin/
           wasm-opt --version
 
-      - name: Install Trunk
+      - name: Install Trunk || true
         run: cargo install --locked trunk
 
       - name: Build WASM (optimized)
@@ -99,10 +98,10 @@ jobs:
           for wasm_file in *.wasm; do
             if [ -f "$wasm_file" ]; then
               echo "🔧 Optimizing $wasm_file..."
-              
+
               SIZE_BEFORE=$(stat -c%s "$wasm_file")
               echo "  Before: $((SIZE_BEFORE / 1024)) KB"
-              
+
               wasm-opt -Oz \
                 --enable-bulk-memory \
                 --enable-simd \
@@ -111,9 +110,9 @@ jobs:
                 --strip-producers \
                 "$wasm_file" \
                 -o "${wasm_file}.opt"
-              
+
               mv "${wasm_file}.opt" "$wasm_file"
-              
+
               SIZE_AFTER=$(stat -c%s "$wasm_file")
               REDUCTION=$((100 - (SIZE_AFTER * 100 / SIZE_BEFORE)))
               echo "  After:  $((SIZE_AFTER / 1024)) KB (-${REDUCTION}%)"
@@ -123,30 +122,30 @@ jobs:
       - name: Generate size report
         run: |
           cd crates/wasm/dist
-          
+
           echo "📊 WASM Bundle Size Report" > size-report.txt
           echo "=============================" >> size-report.txt
           echo "" >> size-report.txt
-          
+
           for wasm_file in *.wasm; do
             if [ -f "$wasm_file" ]; then
               SIZE=$(stat -c%s "$wasm_file")
               SIZE_KB=$((SIZE / 1024))
-              
+
               gzip -c "$wasm_file" > "${wasm_file}.gz"
               SIZE_GZ=$(stat -c%s "${wasm_file}.gz")
               SIZE_GZ_KB=$((SIZE_GZ / 1024))
               rm "${wasm_file}.gz"
-              
+
               echo "File: $wasm_file" >> size-report.txt
               echo "  Uncompressed: ${SIZE_KB} KB" >> size-report.txt
               echo "  Gzipped:      ${SIZE_GZ_KB} KB" >> size-report.txt
               echo "" >> size-report.txt
             fi
           done
-          
+
           cat size-report.txt
-          
+
           echo "## 📦 WASM Bundle Size" >> $GITHUB_STEP_SUMMARY
           cat size-report.txt >> $GITHUB_STEP_SUMMARY
 
