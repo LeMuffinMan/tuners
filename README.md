@@ -1,32 +1,43 @@
 # Tune.rs
 
-A real-time audio DSP engine in Rust. Captures live microphone input, extracts signal features (RMS, waveform, frequency detection), and visualizes them — on both native desktop and web (WASM).
-
-→ [Try it live](https://lemuffinman.github.io/tuners)
+<table>
+<tr>
+<td><h3>Real-time audio DSP in Rust — native + browser, same pipeline</h3></td>
+<td align="right">
+  <strong><a href="https://lemuffinman.github.io/tuners">▶ Try it live</a></strong>
+</td>
+</tr>
+</table>
 
 ---
 
-## Features
+I built this to explore what real-time audio constraints actually look like in Rust. The premise: an instrument tuner. The real question: can the same DSP pipeline run identically on desktop and in a browser, with the constraints that come with it?
 
-- **Live audio capture** — microphone input via CPAL (native) or Web Audio API / AudioWorklet (WASM)
-- **Signal processing** — RMS energy, waveform visualization, frequency detection with note name (autocorrelation, A4 = 440 Hz)
-- **Responsive GUI** — desktop and mobile layouts (egui/eframe)
-- **CLI mode** — headless RMS bar in terminal (`--ui cli`)
-- **Dual compilation** — same core codebase, two targets: native binary and WASM
+The hard constraint on the audio side: the capture callback runs on a dedicated thread (CPAL, native) or in an AudioWorklet rendering thread (WASM). Both contexts forbid allocation, blocking, and shared mutable state. On native you'd reach for a mutex — but that risks a priority inversion and a dropout. On WASM there is no SharedArrayBuffer available. In both cases, the solution is the same: a single-producer / single-consumer lock-free ring buffer. The audio side pushes raw `f32` samples; the DSP drains and computes each frame. No contention, no copies past the boundary.
+
+The `AudioBackend` trait makes the rest of the system blind to which target is running. `cfg` gates are confined to backend selection and a few initialization paths. DSP and GUI see neither CPAL nor Web Audio — just a `Consumer<f32>`.
+
+---
+
+## What it does
+
+- **Instrument tuner** — pitch detection in real time, note name and cents deviation from equal temperament
+- **Waveform display** — live oscilloscope view of the captured signal
+- **RMS meter** — energy envelope over time
+- **CLI mode** — note + Hz output in the terminal (`--ui cli --visualizer freq`)
+- **Native + WASM** — same DSP core, two targets, one codebase
 
 ---
 
 ## Architecture
 
-The central design goal: a single audio + DSP pipeline shared across targets, with all platform-specific code isolated at the edges.
-
 ```
 crates/
-├── audio/    — AudioBackend trait + NativeAudioBackend (CPAL) + WasmAudioBackend (Web Audio API)
-├── dsp/      — DigitalSignalProcessor: RMS, waveform, autocorrelation, note detection
-├── gui/      — egui UI: desktop layout + mobile layout
-├── native/   — native binary entry point, clap CLI parsing
-└── wasm/     — WASM entry point (wasm-bindgen, AudioWorklet bridge)
+├── audio/   — AudioBackend trait + NativeAudioBackend (CPAL) + WasmAudioBackend (Web Audio API)
+├── dsp/     — DigitalSignalProcessor: RMS, waveform, autocorrelation, note + cents
+├── gui/     — egui UI: desktop layout + mobile layout, render
+├── native/  — native binary entry point, clap CLI parsing
+└── wasm/    — WASM entry point (wasm-bindgen), AudioWorklet JS bridge
 ```
 
 **Execution pipeline:**
@@ -40,6 +51,15 @@ WASM:    AudioWorklet (JS) → MessagePort → RingBuffer (rtrb) → DSP → GUI
 
 ## Key design decisions
 
+### Lock-free boundary
+
+Audio callbacks are real-time contexts: no allocation, no blocking, no mutex. The boundary between capture and processing is a single-producer / single-consumer lock-free ring buffer (`rtrb`, capacity 96 000 samples ≈ 2s at 48 kHz).
+
+- **Producer** — owned by the audio callback, pushes raw `f32` samples
+- **Consumer** — owned by the DSP, drained each frame
+
+This works identically on both targets. On native, CPAL's callback pushes samples from its thread. On WASM, the AudioWorklet forwards batches via `MessagePort → Float32Array` — no `SharedArrayBuffer` needed.
+
 ### AudioBackend trait
 
 Both targets implement the same interface:
@@ -52,38 +72,29 @@ trait AudioBackend {
 }
 ```
 
-- `NativeAudioBackend` — CPAL audio callback, `Producer<f32>` moved into the closure
-- `WasmAudioBackend` — async init, AudioWorklet module loaded via promise, samples received through `MessagePort` → `Float32Array`
+- `NativeAudioBackend` — CPAL stream, `Producer<f32>` moved into the callback closure (ownership enforces the real-time contract: only the callback touches the producer)
+- `WasmAudioBackend` — async init, AudioWorklet module loaded via promise, samples received through `MessagePort → Float32Array` → ring buffer
 
-This keeps DSP and GUI completely platform-agnostic. `cfg` gates are confined to backend selection and a few initialization paths.
+### Pitch detection
 
-### Lock-free ring buffer
-
-Audio callbacks are real-time contexts: no allocation, no blocking. The boundary between audio capture and the rest of the system is a single-producer / single-consumer lock-free ring buffer (`rtrb`, capacity 96 000 samples ≈ 2s at 48 kHz).
-
-- **Producer** — owned by the audio callback, pushes raw `f32` samples
-- **Consumer** — owned by the DSP, drained each frame
-
-This works on both targets: CPAL on native, and on WASM where the AudioWorklet forwards samples via `MessagePort` (no `SharedArrayBuffer` available).
-
-### DSP
-
-Each frame, `DigitalSignalProcessor::update()` drains the ring buffer and computes:
+Autocorrelation on a 1024+ sample buffer, bounded to the musical range (80 Hz–1000 Hz). Peak lag → frequency → note name + cents deviation from equal temperament (A4 = 440 Hz). Not FFT-based — the intent was to understand the algorithm directly, not reach production-level accuracy.
 
 | Feature | Method |
 |---|---|
-| RMS | `sqrt(sum(s²) / n)` |
+| RMS | `sqrt(Σs² / n)` |
 | Waveform | Downsampled window of raw samples |
-| Frequency | Autocorrelation on 1024+ sample buffer, peak lag → Hz |
+| Frequency | Autocorrelation, bounded lag, parabolic interpolation |
+| Note | 12-TET from frequency, A4 = 440 Hz |
+| Cents | Deviation from nearest semitone |
 
 ### GUI
 
 The GUI crate (egui/eframe) adapts its layout at runtime:
 
-- **Desktop** — control panel (start/stop, visualizer selector) + side panel (source code link) + central visualization
+- **Desktop** — control panel (start/stop, feature selector) + central visualization
 - **Mobile** — larger fonts, stacked layout, touch-friendly controls
 
-The same `TunerApp` struct handles both layouts.
+The same `TunerApp` struct handles both layouts. `cfg` gates are absent from GUI code — layout selection is runtime, not compile-time.
 
 ---
 
@@ -95,11 +106,12 @@ The same `TunerApp` struct handles both layouts.
 # GUI (default)
 cargo run -p tuners_native
 
-# CLI — RMS bar in terminal
+# CLI — note + Hz in terminal
+cargo run -p tuners_native -- --ui cli --visualizer freq
+
+# CLI — RMS bar
 cargo run -p tuners_native -- --ui cli --visualizer rms
 ```
-
-Available visualizers: `rms`, `freq`, `wave-form`
 
 ### WASM
 
@@ -117,5 +129,5 @@ cd crates/wasm && trunk serve
 - [CPAL — cross-platform audio](https://github.com/RustAudio/cpal)
 - [Web Audio API — AudioWorklet](https://developer.mozilla.org/en-US/docs/Web/API/AudioWorklet)
 - [wasm-bindgen guide](https://rustwasm.github.io/docs/wasm-bindgen/)
+- [Autocorrelation pitch detection](https://en.wikipedia.org/wiki/Autocorrelation)
 - [egui](https://github.com/emilk/egui)
-- [Autocorrelation pitch detection](https://en.wikipedia.org/wiki/Autocorrelation#Efficient_computation)
