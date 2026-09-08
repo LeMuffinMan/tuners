@@ -132,6 +132,21 @@ impl TunerApp {
                         egui::FontId::proportional(40.0),
                         Color32::from_gray(200),
                     );
+
+                    if let Some(cents) = dsp.get_cents() {
+                        let color = if cents.abs() < 5.0 {
+                            Color32::from_rgb(0, 255, 100)
+                        } else {
+                            Color32::from_rgb(235, 165, 60)
+                        };
+                        painter.text(
+                            Pos2::new(center.x, center.y + 130.0),
+                            egui::Align2::CENTER_CENTER,
+                            format!("{cents:+.0} cents"),
+                            egui::FontId::proportional(30.0),
+                            color,
+                        );
+                    }
                 }
             } else {
                 painter.text(

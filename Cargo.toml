@@ -6,6 +6,12 @@ members = [ "crates/audio",
     "crates/gui",
     "crates/wasm"
 ]
+default-members = [
+    "crates/audio",
+    "crates/dsp",
+    "crates/gui",
+    "crates/native",
+]
 
 [profile.release]
 opt-level = 3

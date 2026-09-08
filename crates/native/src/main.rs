@@ -5,6 +5,7 @@ use clap::{Parser, ValueEnum};
 use dsp::DigitalSignalProcessor;
 use dsp::Visualizer;
 use gui::{DeviceType, TunerApp};
+use std::io::Write;
 use std::time::Duration;
 
 //compile with cargo run -p tuners_native_gui
@@ -64,8 +65,18 @@ fn main() {
                         let bars = (dsp.get_rms() * 100.0) as usize;
                         println!("{: <50}", "█".repeat(bars));
                     }
-                    Visualizer::WaveForm => {}
-                    Visualizer::Freq => {}
+                    Visualizer::WaveForm => {
+                        println!("waveform is only rendered by the gui, run with --ui gui");
+                        break;
+                    }
+                    Visualizer::Freq => {
+                        if let (Some(note), Some(freq), Some(cents)) =
+                            (dsp.get_note(), dsp.get_frequency(), dsp.get_cents())
+                        {
+                            print!("\r{note:<4} {freq:8.2} Hz  {cents:+.0} cents      ");
+                            let _ = std::io::stdout().flush();
+                        }
+                    }
                 }
             }
         } // Ui::Tui => {
