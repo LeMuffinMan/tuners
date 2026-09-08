@@ -79,7 +79,7 @@ impl TunerApp {
                 Pos2::new(rect.left(), center_y),
                 Pos2::new(rect.right(), center_y),
             ],
-            Stroke::new(1.0, Color32::from_gray(60)),
+            Stroke::new(1.0_f32, Color32::from_gray(60)),
         );
 
         if let Some(dsp) = &self.dsp {
@@ -96,7 +96,7 @@ impl TunerApp {
 
                 painter.add(egui::Shape::line(
                     points,
-                    Stroke::new(2.0, Color32::from_rgb(0, 200, 255)),
+                    Stroke::new(2.0_f32, Color32::from_rgb(0, 200, 255)),
                 ));
             }
         }
