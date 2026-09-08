@@ -1,7 +1,7 @@
 📊 WASM Bundle Size Report
 =============================
 
-File: tuners_wasm-f1ff76203a2ec6ab_bg.wasm
-  Uncompressed: 2638 KB
-  Gzipped:      1229 KB
+File: tuners_wasm-28c11ffab85cf103_bg.wasm
+  Uncompressed: 2656 KB
+  Gzipped:      1232 KB
 
