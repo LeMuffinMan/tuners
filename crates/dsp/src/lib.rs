@@ -9,6 +9,12 @@ const MIN_FREQ: f32 = 80.0;
 const MAX_FREQ: f32 = 1000.0;
 /// Reference pitch of the 12 tone equal temperament we tune against.
 const A4: f32 = 440.0;
+/// How many samples we keep to analyse : 4096 at 48 kHz is 85 ms, enough for
+/// seven periods of the lowest note we look for.
+const WINDOW_SIZE: usize = 4096;
+/// Below that energy we consider there is nothing to tune, and stop reporting a
+/// note : the autocorrelation would otherwise find a pitch in the room noise.
+const SILENCE_RMS: f32 = 0.01;
 
 ///We use this struct to compute on samples and store results ready to be displayed by ui
 pub struct DigitalSignalProcessor {
@@ -39,14 +45,16 @@ impl DigitalSignalProcessor {
     //we call this function in the eframe loop
     //at each frame, we update our sample_buffer so we work on the latests samples
     pub fn update(&mut self, feature: Visualizer) {
-        self.sample_buffer.clear();
         let mut count = 0;
         while let Ok(sample) = self.consumer.pop() {
             self.sample_buffer.push(sample);
             count += 1;
-            if self.sample_buffer.len() >= BUFFER_SIZE {
-                break;
-            }
+        }
+        //a frame only brings what arrived since the previous one, far less than
+        //the autocorrelation needs : we slide a window instead of starting over
+        if self.sample_buffer.len() > WINDOW_SIZE {
+            let extra = self.sample_buffer.len() - WINDOW_SIZE;
+            self.sample_buffer.drain(..extra);
         }
         //faire une macro pour les logs pour egui / cli / wasm
         if count > 0 {
@@ -67,18 +75,19 @@ impl DigitalSignalProcessor {
         self.rms = (sum / self.sample_buffer.len() as f32).sqrt();
 
         if feature == Visualizer::Freq {
-            if let Some(freq) = Self::autocorrelation(&self.sample_buffer, self.sample_rate) {
-                self.frequency = Some(freq);
-                self.note = Some(Self::freq_to_note(freq));
-                self.cents = Some(Self::freq_to_cents(freq));
-                #[cfg(target_arch = "wasm32")]
+            let detected = if self.rms < SILENCE_RMS {
+                None
+            } else {
+                Self::autocorrelation(&self.sample_buffer, self.sample_rate)
+            };
+            self.frequency = detected;
+            self.note = detected.map(Self::freq_to_note);
+            self.cents = detected.map(Self::freq_to_cents);
+            #[cfg(target_arch = "wasm32")]
+            if let Some(freq) = detected {
                 web_sys::console::log_1(
                     &format!("Detected: {} Hz ({})", freq, Self::freq_to_note(freq)).into(),
                 );
-            } else {
-                self.frequency = None;
-                self.note = None;
-                self.cents = None;
             }
         }
 
@@ -225,8 +234,9 @@ mod tests {
             .collect()
     }
 
+    //same window as the one the processor slides in production
     fn detect(freq: f32) -> f32 {
-        DigitalSignalProcessor::autocorrelation(&sine(freq, 4096), SAMPLE_RATE)
+        DigitalSignalProcessor::autocorrelation(&sine(freq, WINDOW_SIZE), SAMPLE_RATE)
             .expect("a sine inside the musical range must be detected")
     }
 
@@ -260,7 +270,7 @@ mod tests {
 
     #[test]
     fn silence_is_not_a_note() {
-        let silence = vec![0.0; 4096];
+        let silence = vec![0.0; WINDOW_SIZE];
         assert!(DigitalSignalProcessor::autocorrelation(&silence, SAMPLE_RATE).is_none());
     }
 }
